@@ -1,3 +1,4 @@
+import { listen } from '@sursaut/core'
 import type { ElementPassthroughProps } from '../shared/types'
 // ── SpacingToken ─────────────────────────────────────────────────────────────
 
@@ -323,8 +324,7 @@ export function appShellModel(props: AppShellProps): AppShellModel {
 					headerEl.classList.toggle('shadow', window.scrollY > 0)
 				}
 				onScroll()
-				window.addEventListener('scroll', onScroll, { passive: true })
-				return () => window.removeEventListener('scroll', onScroll)
+				return listen(window, 'scroll', onScroll, { passive: true })
 			}
 		},
 	}

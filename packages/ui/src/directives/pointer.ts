@@ -1,3 +1,4 @@
+import { listen } from '@sursaut/core'
 import { resolveElement } from './shared'
 
 export type PointerState = {
@@ -36,15 +37,15 @@ export function pointer(target: Node | Node[], value: PointerBinding): (() => vo
 		handleMove(e)
 	}
 
-	element.addEventListener('pointermove', handleMove)
-	element.addEventListener('pointerdown', handleDown)
-	element.addEventListener('pointerup', handleUp)
-	element.addEventListener('pointerleave', handleLeave)
+	const stopMove = listen(element, 'pointermove', handleMove as EventListener)
+	const stopDown = listen(element, 'pointerdown', handleDown as EventListener)
+	const stopUp = listen(element, 'pointerup', handleUp as EventListener)
+	const stopLeave = listen(element, 'pointerleave', handleLeave)
 
 	return () => {
-		element.removeEventListener('pointermove', handleMove)
-		element.removeEventListener('pointerdown', handleDown)
-		element.removeEventListener('pointerup', handleUp)
-		element.removeEventListener('pointerleave', handleLeave)
+		stopMove()
+		stopDown()
+		stopUp()
+		stopLeave()
 	}
 }

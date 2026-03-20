@@ -7,6 +7,111 @@ export function isFunction(value: any): value is Function {
 	return typeof value === 'function'
 }
 
+const rootedEventListeners = new WeakMap<
+	EventTarget,
+	Map<string, Map<boolean, WeakMap<WeakKey, EventListener>>>
+>()
+const rootedEventListenerHook = Symbol('sursaut.rootedEventListenerHook')
+type HookedEventTargetPrototype = EventTarget['constructor']['prototype'] & {
+	[rootedEventListenerHook]?: {
+		addEventListener: EventTarget['addEventListener']
+		removeEventListener: EventTarget['removeEventListener']
+	}
+}
+
+function eventCapture(options?: boolean | AddEventListenerOptions) {
+	return typeof options === 'boolean' ? options : Boolean(options?.capture)
+}
+
+function rootedEventListenerMap(
+	target: EventTarget,
+	type: string,
+	capture: boolean,
+	create: boolean
+) {
+	let listenersByType = rootedEventListeners.get(target)
+	if (!listenersByType) {
+		if (!create) return undefined
+		listenersByType = new Map()
+		rootedEventListeners.set(target, listenersByType)
+	}
+	let listenersByCapture = listenersByType.get(type)
+	if (!listenersByCapture) {
+		if (!create) return undefined
+		listenersByCapture = new Map()
+		listenersByType.set(type, listenersByCapture)
+	}
+	let listeners = listenersByCapture.get(capture)
+	if (!listeners) {
+		if (!create) return undefined
+		listeners = new WeakMap()
+		listenersByCapture.set(capture, listeners)
+	}
+	return listeners
+}
+
+function rootedEventCallback(
+	type: string,
+	listener: EventListenerOrEventListenerObject
+): EventListener {
+	return function (this: EventTarget, evt: Event) {
+		return root`event:${type}`(() =>
+			typeof listener === 'function' ? listener.call(this, evt) : listener.handleEvent(evt)
+		)
+	}
+}
+
+function resolveRootedEventListener(
+	target: EventTarget,
+	type: string,
+	listener: EventListenerOrEventListenerObject | null,
+	options: boolean | AddEventListenerOptions | undefined,
+	create: boolean
+) {
+	if (!listener || !isWeakKey(listener)) return listener
+	const listeners = rootedEventListenerMap(target, type, eventCapture(options), create)
+	if (!listeners) return listener
+	let rooted = listeners.get(listener)
+	if (!rooted && create) {
+		rooted = rootedEventCallback(type, listener)
+		listeners.set(listener, rooted)
+	}
+	return rooted ?? listener
+}
+
+function hookRootedEventListeners() {
+	const prototype = globalThis.EventTarget?.prototype as HookedEventTargetPrototype | undefined
+	if (!prototype) return
+	const hooked = prototype[rootedEventListenerHook]
+	if (hooked) return hooked
+	const addEventListener = prototype.addEventListener
+	const removeEventListener = prototype.removeEventListener
+	prototype[rootedEventListenerHook] = { addEventListener, removeEventListener }
+	prototype.addEventListener = function (
+		this: EventTarget,
+		type: string,
+		listener: EventListenerOrEventListenerObject | null,
+		options?: boolean | AddEventListenerOptions
+	) {
+		const rooted = resolveRootedEventListener(this, type, listener, options, true)
+		testing.renderingEvent?.('add event listener', this, type, rooted, options)
+		return addEventListener.call(this, type, rooted, options)
+	}
+	prototype.removeEventListener = function (
+		this: EventTarget,
+		type: string,
+		listener: EventListenerOrEventListenerObject | null,
+		options?: boolean | EventListenerOptions
+	) {
+		const rooted = resolveRootedEventListener(this, type, listener, options, false)
+		testing.renderingEvent?.('remove event listener', this, type, rooted, options)
+		return removeEventListener.call(this, type, rooted, options)
+	}
+	return prototype[rootedEventListenerHook]
+}
+
+const rootedEventListenerHooks = hookRootedEventListeners()
+
 export function isNumber(value: any): value is number {
 	return typeof value === 'number'
 }
@@ -32,13 +137,13 @@ export function listen(
 	listener: EventListener,
 	options?: boolean | AddEventListenerOptions
 ) {
-	// events listener are run in the root zone, no effect can run them, only user's interaction can trigger them
-	const rooted = (evt: Event) => root`event:${type}`(() => listener(evt))
-	testing.renderingEvent?.('add event listener', target, type, rooted, options)
-	target.addEventListener(type, rooted, options)
+	const addEventListener = rootedEventListenerHooks?.addEventListener ?? target.addEventListener
+	const removeEventListener =
+		rootedEventListenerHooks?.removeEventListener ?? target.removeEventListener
+	const rooted = resolveRootedEventListener(target, type, listener, options, true)
+	addEventListener.call(target, type, rooted, options)
 	return () => {
-		testing.renderingEvent?.('remove event listener', target, type, rooted, options)
-		target.removeEventListener(type, rooted, options)
+		removeEventListener.call(target, type, rooted, options)
 	}
 }
 

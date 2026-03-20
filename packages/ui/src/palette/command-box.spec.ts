@@ -1,10 +1,14 @@
+import { h } from '@sursaut/core'
 import { describe, expect, it, vi } from 'vitest'
 import {
 	handlePaletteCommandBoxInputKeydown,
 	handlePaletteCommandChipKeydown,
 	Palette,
+	paletteAddItemEntries,
 	paletteCommandBoxModel,
 	paletteCommandEntries,
+	paletteDerivedVariants,
+	paletteEnumSubsetValues,
 } from './index'
 import { createPaletteKeys } from './keys'
 import type { PaletteConfig } from './types'
@@ -177,6 +181,32 @@ describe('paletteCommandBoxModel', () => {
 		expect(model.keywords.tokens).toHaveLength(0)
 		expect(model.categories.active).toHaveLength(0)
 		expect(model.selection.index).toBe(-1)
+	})
+
+	it('selects the highlighted result without executing when enterAction is select', () => {
+		const first = vi.fn()
+		const second = vi.fn()
+		const model = paletteCommandBoxModel({
+			entries: [
+				{ id: 'first', label: 'First Command', run: first },
+				{ id: 'second', label: 'Second Command', run: second },
+			],
+			enterAction: 'select',
+		})
+
+		model.handleKeyDown(new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true }))
+		model.handleKeyDown(new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true }))
+		expect(model.selection.item?.id).toBe('second')
+
+		expect(
+			model.handleKeyDown(new KeyboardEvent('keydown', { key: 'Enter', cancelable: true }))
+		).toBe(true)
+		expect(first).not.toHaveBeenCalled()
+		expect(second).not.toHaveBeenCalled()
+		expect(model.selection.item?.id).toBe('second')
+
+		model.execute()
+		expect(second).toHaveBeenCalledTimes(1)
 	})
 
 	it('clears selection first and filters second on escape', () => {
@@ -406,5 +436,93 @@ describe('paletteCommandBoxModel', () => {
 			'Disable Notifications'
 		)
 		expect(entries.find((entry) => entry.id === 'theme|light')?.keywords).toContain('day')
+	})
+
+	it('derives add-item entries and right-side variants from palette tools and editor-only items', () => {
+		const palette = new Palette({
+			tools: {
+				theme: {
+					type: 'enum' as const,
+					label: 'Theme',
+					icon: '🎨',
+					get value() {
+						return 'dark' as const
+					},
+					set value(_value: 'light' | 'dark') {},
+					default: 'dark' as const,
+					values: [
+						{ value: 'light' as const, label: 'Light' },
+						{ value: 'dark' as const, label: 'Dark' },
+					],
+				},
+				fontSize: {
+					type: 'number' as const,
+					label: 'Font Size',
+					get value() {
+						return 12
+					},
+					set value(_value: number) {},
+					default: 12,
+					min: 10,
+					max: 20,
+					step: 1,
+				},
+				reset: {
+					label: 'Reset Defaults',
+					get can() {
+						return true
+					},
+					run() {},
+				},
+			},
+			keys: createPaletteKeys({ R: 'reset' }),
+			editors: {
+				item: {
+					commandBox: {
+						editor: () => h('div', {}),
+					},
+				},
+			},
+		} satisfies PaletteConfig)
+
+		const entries = paletteAddItemEntries({ palette })
+		expect(entries.find((entry) => entry.id === 'tool:theme')?.label).toBe('Theme')
+		expect(entries.find((entry) => entry.id === 'item:commandBox')?.meta).toBe(
+			'Add editor-only item'
+		)
+
+		const themeVariants = paletteDerivedVariants({
+			palette,
+			entry: entries.find((entry) => entry.id === 'tool:theme')!,
+		})
+		expect(themeVariants.map((entry) => entry.kind)).toEqual(['tool', 'set'])
+		expect(themeVariants.find((entry) => entry.kind === 'set')?.valueType).toBe('enum')
+
+		const numberVariants = paletteDerivedVariants({
+			palette,
+			entry: entries.find((entry) => entry.id === 'tool:fontSize')!,
+		})
+		expect(numberVariants.map((entry) => entry.kind)).toEqual(['tool', 'set', 'action', 'action'])
+		expect(numberVariants.find((entry) => entry.action === 'inc')?.spec).toBe('fontSize:inc')
+	})
+
+	it('matches enum subset keywords from explicit keywords and dot-separated value names', () => {
+		const values = paletteEnumSubsetValues({
+			values: [
+				{ value: 'layout.horizontal', label: 'Horizontal layout', keywords: ['row'] },
+				{ value: 'layout.vertical', label: 'Vertical layout', keywords: ['column'] },
+			],
+			keywords: ['vertical'],
+		})
+		expect(values.map((entry) => entry.value)).toEqual(['layout.vertical'])
+
+		const explicit = paletteEnumSubsetValues({
+			values: [
+				{ value: 'layout.horizontal', keywords: ['row'] },
+				{ value: 'layout.vertical', keywords: ['column'] },
+			],
+			keywords: ['row'],
+		})
+		expect(explicit.map((entry) => entry.value)).toEqual(['layout.horizontal'])
 	})
 })

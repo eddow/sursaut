@@ -1,3 +1,4 @@
+import { listen } from '@sursaut/core'
 import { resolveElement } from './shared'
 
 /**
@@ -57,11 +58,11 @@ export function tail(target: Node | Node[], value?: boolean): (() => void) | und
 	})
 	const visibilityCheckInterval = setInterval(checkVisibility, 50)
 
-	element.addEventListener('scroll', onScroll, { passive: true })
+	const stopScroll = listen(element, 'scroll', onScroll, { passive: true })
 	observer.observe(element, { childList: true, subtree: true })
 
 	return () => {
-		element.removeEventListener('scroll', onScroll)
+		stopScroll()
 		observer.disconnect()
 		clearInterval(visibilityCheckInterval)
 	}

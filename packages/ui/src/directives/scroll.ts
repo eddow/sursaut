@@ -1,3 +1,4 @@
+import { listen } from '@sursaut/core'
 import { atomic, isObject } from 'mutts'
 import { resolveElement } from './shared'
 
@@ -55,12 +56,12 @@ export function scroll(target: Node | Node[], value: ScrollOptions): (() => void
 	})
 
 	const resizeObserver = new ResizeObserver(atomic(updateMax))
-	element.addEventListener('scroll', handleScroll)
+	const stopScroll = listen(element, 'scroll', handleScroll)
 	resizeObserver.observe(element)
 	updateMax()
 
 	return () => {
-		element.removeEventListener('scroll', handleScroll)
+		stopScroll()
 		resizeObserver.disconnect()
 	}
 }

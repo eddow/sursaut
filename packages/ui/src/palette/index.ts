@@ -1,16 +1,22 @@
 import './palette.css'
 
 export type {
+	PaletteAddItemCommandEntry,
+	PaletteAddItemSource,
 	PaletteCommandBoxEntry,
 	PaletteCommandBoxKeywordSuggestion,
 	PaletteCommandBoxModel,
 	PaletteCommandBoxQuery,
+	PaletteDerivedVariant,
 } from './command-box'
 export {
 	handlePaletteCommandBoxInputKeydown,
 	handlePaletteCommandChipKeydown,
+	paletteAddItemEntries,
 	paletteCommandBoxModel,
 	paletteCommandEntries,
+	paletteDerivedVariants,
+	paletteEnumSubsetValues,
 	setPaletteCommandBoxInput,
 } from './command-box'
 export {

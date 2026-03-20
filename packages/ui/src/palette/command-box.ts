@@ -1,6 +1,19 @@
 import { lift, reactive } from 'mutts'
-import { isRunTool, paletteTool, paletteToolFamily, valueActions } from './palette'
-import type { Palette, PaletteSchema, PaletteTool, PaletteToolRun } from './types'
+import {
+	isEditableTool,
+	isRunTool,
+	paletteEnumValueKeywords,
+	paletteTool,
+	paletteToolFamily,
+	valueActions,
+} from './palette'
+import type {
+	Palette,
+	PaletteSchema,
+	PaletteTool,
+	PaletteToolEnumValue,
+	PaletteToolRun,
+} from './types'
 
 function normalizeCommandBoxToken(value: string): string {
 	return value.trim().toLowerCase()
@@ -50,6 +63,39 @@ export type PaletteCommandBoxEntry = {
 	readonly categories?: readonly string[]
 	readonly can?: boolean
 	run(): unknown
+}
+
+export type PaletteAddItemSource<TSchema extends PaletteSchema = PaletteSchema> = {
+	readonly id: string
+	readonly label: string
+	readonly meta: string
+	readonly icon?: string
+	readonly keywords?: readonly string[]
+	readonly categories?: readonly string[]
+	readonly kind: 'tool' | 'item'
+	readonly toolId?: keyof TSchema['tools'] & string
+	readonly editor?: keyof TSchema['editorConfigs'] & string
+}
+
+export type PaletteAddItemCommandEntry<TSchema extends PaletteSchema = PaletteSchema> =
+	PaletteCommandBoxEntry & {
+		readonly source: PaletteAddItemSource<TSchema>
+	}
+
+export type PaletteDerivedVariant<TSchema extends PaletteSchema = PaletteSchema> = {
+	readonly id: string
+	readonly label: string
+	readonly meta: string
+	readonly icon?: string
+	readonly keywords?: readonly string[]
+	readonly categories?: readonly string[]
+	readonly kind: 'tool' | 'item' | 'set' | 'action'
+	readonly toolId?: keyof TSchema['tools'] & string
+	readonly editor?: keyof TSchema['editorConfigs'] & string
+	readonly action?: string
+	readonly spec?: string
+	readonly valueType?: 'boolean' | 'number' | 'enum'
+	readonly values?: readonly PaletteToolEnumValue[]
 }
 
 function splitCommandWords(value: string): string[] {
@@ -136,6 +182,205 @@ function generatedCommandEntry(options: {
 	}
 }
 
+function generatedAddItemEntry<TSchema extends PaletteSchema>(options: {
+	source: PaletteAddItemSource<TSchema>
+	can?: () => boolean
+}): PaletteAddItemCommandEntry<TSchema> {
+	return {
+		id: options.source.id,
+		label: options.source.label,
+		meta: options.source.meta,
+		icon: options.source.icon,
+		keywords: options.source.keywords,
+		categories: options.source.categories,
+		source: options.source,
+		get can() {
+			return options.can ? options.can() : true
+		},
+		run() {
+			return options.source
+		},
+	}
+}
+
+export function paletteAddItemEntries<TSchema extends PaletteSchema>(options: {
+	palette: Palette<TSchema>
+	excludeTools?: readonly string[]
+}): readonly PaletteAddItemCommandEntry<TSchema>[] {
+	const excluded = new Set(options.excludeTools ?? [])
+	const entries: PaletteAddItemCommandEntry<TSchema>[] = []
+	for (const [toolId, tool] of Object.entries(options.palette.tools)) {
+		if (excluded.has(toolId)) continue
+		const toolLabel = tool.label ?? humanizeCommandText(toolId)
+		entries.push(
+			generatedAddItemEntry({
+				source: {
+					id: `tool:${toolId}`,
+					kind: 'tool',
+					toolId: toolId as keyof TSchema['tools'] & string,
+					label: toolLabel,
+					meta: isRunTool(tool) ? 'Add runnable item' : `Add ${tool.type} tool`,
+					icon: tool.icon,
+					keywords: collectCommandKeywords(toolId, toolLabel, tool.keywords, 'add', 'tool'),
+					categories: commandEntryCategories(tool, ['tools']),
+				},
+			})
+		)
+	}
+	for (const editor of Object.keys(options.palette.editors?.item ?? {})) {
+		entries.push(
+			generatedAddItemEntry({
+				source: {
+					id: `item:${editor}`,
+					kind: 'item',
+					editor: editor as keyof TSchema['editorConfigs'] & string,
+					label: humanizeCommandText(editor),
+					meta: 'Add editor-only item',
+					keywords: collectCommandKeywords(editor, 'add', 'editor', 'toolbox'),
+					categories: ['editors', 'items'],
+				},
+			})
+		)
+	}
+	return entries.toSorted((left, right) => left.label.localeCompare(right.label))
+}
+
+export function paletteDerivedVariants<TSchema extends PaletteSchema>(options: {
+	palette: Palette<TSchema>
+	entry: PaletteAddItemCommandEntry<TSchema> | PaletteAddItemSource<TSchema>
+}): readonly PaletteDerivedVariant<TSchema>[] {
+	const source = 'source' in options.entry ? options.entry.source : options.entry
+	if (source.kind === 'item') {
+		return [
+			{
+				id: `${source.id}:item`,
+				kind: 'item',
+				editor: source.editor,
+				label: source.label,
+				meta: 'Editor-only item',
+				icon: source.icon,
+				keywords: source.keywords,
+				categories: source.categories,
+			},
+		]
+	}
+	if (!source.toolId) return []
+	const tool = options.palette.tools[source.toolId]
+	if (!tool) return []
+	const toolLabel = tool.label ?? humanizeCommandText(source.toolId)
+	const variants: PaletteDerivedVariant<TSchema>[] = [
+		{
+			id: `${source.id}:tool`,
+			kind: 'tool',
+			toolId: source.toolId,
+			label: `Add ${toolLabel}`,
+			meta: isRunTool(tool) ? 'Toolbar action item' : 'Editable tool item',
+			icon: tool.icon,
+			keywords: collectCommandKeywords(source.toolId, toolLabel, tool.keywords),
+			categories: commandEntryCategories(tool, ['tool']),
+		},
+	]
+	if (!isEditableTool(tool)) return variants
+	const editableTool = tool
+	if (editableTool.type === 'boolean') {
+		variants.push({
+			id: `${source.id}:set`,
+			kind: 'set',
+			toolId: source.toolId,
+			label: `Set ${toolLabel}`,
+			meta: 'Choose on/off value',
+			icon: editableTool.icon,
+			keywords: collectCommandKeywords(
+				source.toolId,
+				toolLabel,
+				editableTool.keywords,
+				'set',
+				'toggle'
+			),
+			categories: commandEntryCategories(editableTool, ['derived']),
+			valueType: 'boolean',
+		})
+		return variants
+	}
+	if (editableTool.type === 'enum') {
+		variants.push({
+			id: `${source.id}:set`,
+			kind: 'set',
+			toolId: source.toolId,
+			label: `Set ${toolLabel}`,
+			meta: 'Choose enum value',
+			icon: editableTool.icon,
+			keywords: collectCommandKeywords(
+				source.toolId,
+				toolLabel,
+				editableTool.keywords,
+				'set',
+				'value'
+			),
+			categories: commandEntryCategories(editableTool, ['derived']),
+			valueType: 'enum',
+			values: editableTool.values,
+		})
+		return variants
+	}
+	if (editableTool.type === 'number') {
+		variants.push({
+			id: `${source.id}:set`,
+			kind: 'set',
+			toolId: source.toolId,
+			label: `Set ${toolLabel}`,
+			meta: 'Enter numeric value',
+			icon: editableTool.icon,
+			keywords: collectCommandKeywords(
+				source.toolId,
+				toolLabel,
+				editableTool.keywords,
+				'set',
+				'value'
+			),
+			categories: commandEntryCategories(editableTool, ['derived']),
+			valueType: 'number',
+		})
+		for (const action of Object.keys(valueActions.number)) {
+			variants.push({
+				id: `${source.id}:action:${action}`,
+				kind: 'action',
+				toolId: source.toolId,
+				action,
+				spec: `${source.toolId}:${action}`,
+				label:
+					action === 'inc'
+						? `Increase ${toolLabel}`
+						: action === 'dec'
+							? `Decrease ${toolLabel}`
+							: `${humanizeCommandText(action)} ${toolLabel}`,
+				meta: 'Derived value action',
+				icon: editableTool.icon,
+				keywords: collectCommandKeywords(source.toolId, toolLabel, editableTool.keywords, action),
+				categories: commandEntryCategories(editableTool, ['derived']),
+			})
+		}
+	}
+	return variants
+}
+
+export function paletteEnumSubsetValues<TValue extends string>(options: {
+	values: readonly PaletteToolEnumValue<TValue>[]
+	keywords?: readonly string[]
+}): readonly PaletteToolEnumValue<TValue>[] {
+	const keywords = options.keywords?.map((entry) => normalizeCommandBoxToken(entry)).filter(Boolean)
+	if (!keywords?.length) return options.values
+	return options.values.filter((value) => {
+		const actual = new Set(
+			paletteEnumValueKeywords(value).map((entry) => normalizeCommandBoxToken(entry))
+		)
+		for (const keyword of keywords) {
+			if (actual.has(keyword)) return true
+		}
+		return false
+	})
+}
+
 export function paletteCommandEntries<TSchema extends PaletteSchema>(options: {
 	palette: Palette<TSchema>
 	excludeTools?: readonly string[]
@@ -214,6 +459,7 @@ export function paletteCommandEntries<TSchema extends PaletteSchema>(options: {
 			}
 			continue
 		}
+		// TODO: use the generic `paletteConfig.runner` that should provide with a title instead of these hard-coded for inc/dec - as these tools are supposed to be customizable
 		if (tool.type === 'number') {
 			for (const [action, run] of Object.entries(valueActions.number)) {
 				const spec = `${toolId}:${action}`
@@ -290,11 +536,13 @@ export interface PaletteCommandBoxModel {
 	readonly selection: {
 		readonly index: number
 		readonly item: PaletteCommandBoxEntry | undefined
+		select(entryId?: string): PaletteCommandBoxEntry | undefined
 		set(index: number): void
 		next(): void
 		previous(): void
 		clear(): void
 	}
+	select(entryId?: string): PaletteCommandBoxEntry | undefined
 	execute(entryId?: string): unknown
 	search(query: PaletteCommandBoxQuery): void
 	handleKeyDown(event: KeyboardEvent): boolean
@@ -334,6 +582,7 @@ export function handlePaletteCommandBoxInputKeydown(options: {
 export function paletteCommandBoxModel(options: {
 	entries: readonly PaletteCommandBoxEntry[]
 	placeholder?: string
+	enterAction?: 'execute' | 'select'
 }): PaletteCommandBoxModel {
 	const inputState = reactive({ value: '' })
 	const categoryState = reactive({ manual: [] as string[] })
@@ -346,6 +595,7 @@ export function paletteCommandBoxModel(options: {
 		categories: [] as string[],
 	})
 	const inputPlaceholder = options.placeholder
+	const enterAction = options.enterAction ?? 'execute'
 
 	const availableCategories = lift`paletteCommandBoxModel.availableCategories`(() => {
 		const values = options.entries.flatMap((entry) => entry.categories ?? [])
@@ -622,6 +872,17 @@ export function paletteCommandBoxModel(options: {
 		set(index: number) {
 			selectionState.index = Math.max(-1, Math.min(index, model.results.length - 1))
 		},
+		select(entryId?: string) {
+			const index = entryId
+				? model.results.findIndex((candidate) => candidate.id === entryId)
+				: selectionState.index >= 0
+					? selectionState.index
+					: model.results.length > 0
+						? 0
+						: -1
+			selection.set(index)
+			return index >= 0 ? model.results[index] : undefined
+		},
 		next() {
 			if (model.results.length === 0) {
 				selection.clear()
@@ -649,6 +910,9 @@ export function paletteCommandBoxModel(options: {
 		categories,
 		keywords,
 		selection,
+		select(entryId?: string) {
+			return selection.select(entryId)
+		},
 		execute(entryId?: string) {
 			const entry = entryId
 				? options.entries.find((candidate) => candidate.id === entryId)
@@ -693,7 +957,8 @@ export function paletteCommandBoxModel(options: {
 				const entry = selection.item ?? model.results[0]
 				if (!entry || entry.can === false) return false
 				event.preventDefault()
-				model.execute(entry.id)
+				if (enterAction === 'select') model.select(entry.id)
+				else model.execute(entry.id)
 				return true
 			}
 			if (event.key === 'Backspace' && inputState.value.length === 0) {

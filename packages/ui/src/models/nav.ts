@@ -8,6 +8,8 @@
 // setupButtonGroupNav(container) — Arrow-key cycling within a group, Tab exits.
 // setupToolbarNav(container, options) — Tab cycles between toolbar segments.
 
+import { listen } from '@sursaut/core'
+
 // ── Shared helpers ───────────────────────────────────────────────────────────
 
 function getEnabledButtons(container: HTMLElement, roleFilter?: string): HTMLButtonElement[] {
@@ -126,8 +128,7 @@ export function setupButtonGroupNav(
 		}
 	}
 
-	container.addEventListener('keydown', onKeydown)
-	return () => container.removeEventListener('keydown', onKeydown)
+	return listen(container, 'keydown', onKeydown as EventListener)
 }
 
 // ── Toolbar nav ──────────────────────────────────────────────────────────────
@@ -224,6 +225,5 @@ export function setupToolbarNav(
 		}
 	}
 
-	container.addEventListener('keydown', onKeydown)
-	return () => container.removeEventListener('keydown', onKeydown)
+	return listen(container, 'keydown', onKeydown as EventListener)
 }

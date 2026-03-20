@@ -1,7 +1,8 @@
-import { document, rootEnv } from '@sursaut/core'
+import { document, h, rootEnv, SursautElement } from '@sursaut/core'
 import { unwrap } from 'mutts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import './components'
+import { Parking } from './components'
 import { createPaletteKeys } from './keys'
 import { Palette, palettes } from './palette'
 import type { PaletteConfig } from './types'
@@ -32,6 +33,13 @@ function testPalette(run: () => void): Palette {
 
 function attachPaletteRoot(element: HTMLElement, palette: Palette): (() => void) | undefined {
 	return (rootEnv as PaletteRootEnv).paletteRoot?.(element, palette)
+}
+
+function renderNodes(element: JSX.Element | JSX.Element[], scope: Record<string, unknown>) {
+	const item = Array.isArray(element) ? element[0] : element
+	if (!(item instanceof SursautElement)) throw new Error('Expected SursautElement')
+	const nodes = item.render(scope)
+	return Array.isArray(nodes) ? nodes : Array.from(nodes as Iterable<Node>)
 }
 
 describe('paletteRoot', () => {
@@ -332,5 +340,83 @@ describe('paletteRoot', () => {
 		expect(unwrap(palettes.inspecting?.palette)).toBe(palette)
 		expect(unwrap(palettes.inspecting?.item)).toBe(firstItem)
 		cleanup?.()
+	})
+
+	it('keeps parked toolbar content interactive while editing', () => {
+		const run = vi.fn()
+		const palette = new Palette({
+			tools: {
+				run: {
+					get can() {
+						return true
+					},
+					run,
+				},
+			},
+			keys: createPaletteKeys({
+				N: 'run',
+			}),
+			editor: () => h('button', { id: 'parked-run', onClick: () => run() }, 'Run'),
+		} satisfies PaletteConfig)
+		palettes.editing = palette
+
+		const nodes = renderNodes(
+			Parking(
+				{
+					toolbars: [[{ tool: 'run' }]],
+				},
+				{ palette }
+			),
+			{ palette }
+		)
+		const root = document.createElement('div')
+		root.replaceChildren(...nodes)
+		document.body.appendChild(root)
+
+		const button = root.querySelector<HTMLButtonElement>('#parked-run')
+
+		expect(button).toBeTruthy()
+		button?.click()
+		expect(run).toHaveBeenCalledTimes(1)
+	})
+
+	it('deletes a parked toolbar from parking while editing', () => {
+		const palette = new Palette({
+			tools: {
+				run: {
+					get can() {
+						return true
+					},
+					run() {},
+				},
+			},
+			keys: createPaletteKeys({
+				N: 'run',
+			}),
+			editor: () => h('button', { id: 'parked-run' }, 'Run'),
+		} satisfies PaletteConfig)
+		palettes.editing = palette
+
+		const nodes = renderNodes(
+			Parking(
+				{
+					toolbars: [[{ tool: 'run' }]],
+				},
+				{ palette }
+			),
+			{ palette }
+		)
+		const root = document.createElement('div')
+		root.replaceChildren(...nodes)
+		document.body.appendChild(root)
+
+		const removeButton = root.querySelector<HTMLButtonElement>('.palette-parking-remove')
+		const parkedButton = root.querySelector<HTMLButtonElement>('#parked-run')
+
+		expect(removeButton).toBeTruthy()
+		expect(parkedButton).toBeTruthy()
+		removeButton?.click()
+		expect(root.querySelector('.palette-parking-remove')).toBeNull()
+		expect(root.querySelector('#parked-run')).toBeNull()
 	})
 })

@@ -1,3 +1,4 @@
+import { listen } from '@sursaut/core'
 import { resolveElement } from './shared'
 
 // Internal shared state to hold the payload being dragged
@@ -47,12 +48,12 @@ export function drag(
 		}
 	}
 
-	element.addEventListener('dragstart', onDragStart)
-	element.addEventListener('dragend', onDragEnd)
+	const stopDragStart = listen(element, 'dragstart', onDragStart as EventListener)
+	const stopDragEnd = listen(element, 'dragend', onDragEnd)
 
 	return () => {
-		element.removeEventListener('dragstart', onDragStart)
-		element.removeEventListener('dragend', onDragEnd)
+		stopDragStart()
+		stopDragEnd()
 		element.removeAttribute('draggable')
 	}
 }
@@ -79,12 +80,12 @@ export function drop(
 		}
 	}
 
-	element.addEventListener('dragover', onDragOver)
-	element.addEventListener('drop', onDrop)
+	const stopDragOver = listen(element, 'dragover', onDragOver as EventListener)
+	const stopDrop = listen(element, 'drop', onDrop as EventListener)
 
 	return () => {
-		element.removeEventListener('dragover', onDragOver)
-		element.removeEventListener('drop', onDrop)
+		stopDragOver()
+		stopDrop()
 	}
 }
 
@@ -174,15 +175,15 @@ export function dragging(target: Node | Node[], value: DraggingCallback): (() =>
 		// (The actual drop execution is handled by the `drop` directive)
 	}
 
-	element.addEventListener('dragenter', handleDragEnter)
-	element.addEventListener('dragover', handleDragOver)
-	element.addEventListener('dragleave', handleDragLeave)
-	element.addEventListener('drop', handleDrop)
+	const stopDragEnter = listen(element, 'dragenter', handleDragEnter as EventListener)
+	const stopDragOver = listen(element, 'dragover', handleDragOver as EventListener)
+	const stopDragLeave = listen(element, 'dragleave', handleDragLeave as EventListener)
+	const stopDrop = listen(element, 'drop', handleDrop as EventListener)
 
 	return () => {
-		element.removeEventListener('dragenter', handleDragEnter)
-		element.removeEventListener('dragover', handleDragOver)
-		element.removeEventListener('dragleave', handleDragLeave)
-		element.removeEventListener('drop', handleDrop)
+		stopDragEnter()
+		stopDragOver()
+		stopDragLeave()
+		stopDrop()
 	}
 }

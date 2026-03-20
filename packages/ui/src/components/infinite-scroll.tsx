@@ -1,3 +1,4 @@
+import { listen } from '@sursaut/core'
 import { reactive } from 'mutts'
 
 // ── Prefix-sum helpers ────────────────────────────────────────────────────────
@@ -224,9 +225,9 @@ export function InfiniteScroll<T>(props: InfiniteScrollProps<T>): JSX.Element {
 
 	function setupContainer(el: HTMLElement): () => void {
 		scrollContainerEl = el
-		el.addEventListener('scroll', handleScroll)
+		const stopScroll = listen(el, 'scroll', handleScroll)
 		return () => {
-			el.removeEventListener('scroll', handleScroll)
+			stopScroll()
 			scrollContainerEl = null
 			itemObserver?.disconnect()
 		}

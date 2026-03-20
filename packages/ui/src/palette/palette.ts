@@ -19,6 +19,7 @@ import type {
 	PaletteTool,
 	PaletteToolbarItem,
 	PaletteToolEdit,
+	PaletteToolEnumValue,
 	PaletteToolFamily,
 	PaletteToolNumber,
 	PaletteToolOf,
@@ -168,7 +169,7 @@ export class Palette<TSchema extends PaletteSchema = PaletteSchema>
 	}
 
 	get editing() {
-		return unwrap(palettes.editing) === unwrap(this)
+		return this.config.editable !== false && unwrap(palettes.editing) === unwrap(this)
 	}
 
 	tool(spec: string): PaletteToolOf<TSchema> {
@@ -279,6 +280,33 @@ export class Palette<TSchema extends PaletteSchema = PaletteSchema>
 }
 
 const returnValues = new WeakMap<PaletteToolEdit<unknown>, unknown>()
+
+function splitPaletteKeywords(value: string): string[] {
+	return value
+		.split('.')
+		.map((entry) => entry.trim())
+		.filter((entry) => entry.length > 0)
+}
+
+export function paletteEnumValueKeywords<TValue extends string>(
+	value: PaletteToolEnumValue<TValue>
+): string[] {
+	const result = new Set<string>()
+	for (const entry of [
+		value.value,
+		value.label,
+		...(value.categories ?? []),
+		...(value.keywords ?? []),
+	]) {
+		if (typeof entry !== 'string') continue
+		const normalized = entry.trim()
+		if (!normalized) continue
+		result.add(normalized)
+		for (const part of splitPaletteKeywords(normalized)) result.add(part)
+	}
+	return Array.from(result)
+}
+
 function setter(edit: PaletteToolEdit<unknown>, value: unknown): PaletteToolRun {
 	return {
 		can: true,

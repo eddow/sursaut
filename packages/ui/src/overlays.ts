@@ -1,3 +1,4 @@
+import { listen } from '@sursaut/core'
 import { reactive } from 'mutts'
 
 // ── Overlay Manager Types ────────────────────────────────────────────────────
@@ -169,8 +170,7 @@ export function trapFocus(container: HTMLElement): () => void {
 			}
 		}
 	}
-	container.addEventListener('keydown', onKeydown)
-	return () => container.removeEventListener('keydown', onKeydown)
+	return listen(container, 'keydown', onKeydown as EventListener)
 }
 
 // ── Overlay stack logic (framework-agnostic) ─────────────────────────────────

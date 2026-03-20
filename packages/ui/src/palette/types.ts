@@ -79,12 +79,17 @@ export interface PaletteSchema<
 
 export type PaletteToolbarItemBase = Record<PropertyKey, unknown>
 
+export type PaletteToolSpec<TTool extends string = string> =
+	| TTool
+	| `${TTool}|${string}`
+	| `${TTool}:${string}`
+
 export type PaletteToolToolbarItem<
 	TTool extends string = string,
 	TEditor extends string = string,
 	TConfig = unknown,
 > = PaletteToolbarItemBase & {
-	readonly tool: TTool
+	readonly tool: PaletteToolSpec<TTool>
 	editor?: TEditor
 	config?: TConfig
 }
@@ -236,6 +241,7 @@ export type PaletteEditorRegistry<TSchema extends PaletteSchema = PaletteSchema>
 export interface PaletteConfig<TSchema extends PaletteSchema = PaletteSchema> {
 	readonly tools: TSchema['tools']
 	readonly keys: PaletteKeys
+	readonly editable?: boolean
 	readonly editors?: PaletteEditorRegistry<TSchema>
 	readonly editorDefaults?: Partial<Record<PaletteToolFamilyOf<TSchema>, string>>
 	readonly editor?: (

@@ -1,3 +1,4 @@
+import { reactive } from 'mutts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createPaletteKeys } from './keys'
 import {
@@ -294,5 +295,27 @@ describe('palette engine', () => {
 		expect(isEditing(first)).toBe(true)
 		expect(second.editing).toBe(false)
 		expect(isEditing(second)).toBe(false)
+	})
+
+	it('derives editability from config instead of maintained instance state', () => {
+		const popup = reactive({ open: false })
+		const palette = new Palette({
+			...createPalette().config,
+			get editable() {
+				return popup.open
+			},
+		} satisfies PaletteConfig)
+
+		palettes.editing = palette
+		expect(palette.editing).toBe(false)
+		expect(isEditing(palette)).toBe(false)
+
+		popup.open = true
+		expect(palette.editing).toBe(true)
+		expect(isEditing(palette)).toBe(true)
+
+		popup.open = false
+		expect(palette.editing).toBe(false)
+		expect(isEditing(palette)).toBe(false)
 	})
 })

@@ -1,4 +1,4 @@
-import { document } from '@sursaut/core'
+import { document, listen } from '@sursaut/core'
 import { reactive } from 'mutts'
 
 export type ThemeValue = 'auto' | 'light' | 'dark'
@@ -167,8 +167,7 @@ export function themeToggleModel(props: ThemeToggleProps): ThemeToggleModel {
 					state.menuOpen = false
 				}
 			}
-			document.addEventListener('click', handler)
-			return () => document.removeEventListener('click', handler)
+			return listen(document, 'click', handler as EventListener)
 		},
 	}
 

@@ -1051,6 +1051,7 @@ Object.assign(rootEnv, {
 	},
 	paletteToolbarDrag(element: HTMLElement, target: PaletteToolbarDrag): (() => void) | undefined {
 		const onPointerDown = (event: PointerEvent) => {
+			if (!target?.palette) return
 			if (!target.palette.editing) return
 			if (event.button !== 0) return
 			if (isEditableTarget(event.target)) return
@@ -1058,7 +1059,7 @@ Object.assign(rootEnv, {
 			if (!dragging) return
 			startPaletteToolbarDragSession(element, target, event, dragging)
 		}
-
+		// TODO: return listen(element, 'pointerdown', onPointerDown as EventListener)
 		element.addEventListener('pointerdown', onPointerDown)
 		return () => {
 			element.removeEventListener('pointerdown', onPointerDown)
@@ -1119,7 +1120,7 @@ export function Toolbar<TSchema extends PaletteSchema = PaletteSchema>(
 ) {
 	const { palette } = scope
 	if (!palette) throw new Error('No palette to expose')
-	const o = arranged(scope, { density: 'compact' })
+	const o = arranged(scope, { density: 'compact', orientation: props.direction })
 	const dragging = () =>
 		unwrap(palettes.dragging?.palette) === unwrap(palette) ? palettes.dragging : undefined
 	const isInactiveToolbarSpace = (dragging: PaletteDragging | undefined, index: number) =>
@@ -1137,7 +1138,10 @@ export function Toolbar<TSchema extends PaletteSchema = PaletteSchema>(
 			data-editing={palette.editing ? 'true' : undefined}
 			data-dragging={palettes.dragging?.toolbar === props.toolbar ? 'true' : undefined}
 			use:paletteToolbarDrag={
-				props.track
+				props.track &&
+				props.border !== undefined &&
+				props.region !== undefined &&
+				props.trackIndex !== undefined
 					? {
 							border: props.border,
 							direction: props.direction,
@@ -1170,7 +1174,16 @@ export function Toolbar<TSchema extends PaletteSchema = PaletteSchema>(
 					return (
 						<>
 							<div class="toolbar-item">
-								<div class="toolbar-item-content" use:paletteItemShield={palette.editing}>
+								<div
+									class="toolbar-item-content"
+									use:paletteItemShield={
+										!!props.track &&
+										props.border !== undefined &&
+										props.region !== undefined &&
+										props.trackIndex !== undefined &&
+										palette.editing
+									}
+								>
 									{palette.renderEditor(item, tool, scope)}
 								</div>
 								<div
@@ -1383,7 +1396,11 @@ export function ToolbarBorder(
 	return (
 		<div
 			{...props.el}
-			class={['toolbar-border', `palette-${props.direction}`]}
+			class={[
+				'toolbar-border',
+				`palette-${props.direction}`,
+				props.direction === 'horizontal' ? 'stack-vertical' : 'stack-horizontal',
+			]}
 			data-palette-id={scope.palette?.id}
 			use:toolbarsContainer={props.direction}
 		>
@@ -1445,30 +1462,68 @@ export function ToolbarBorder(
 export function Parking(
 	props: {
 		toolbars: readonly PaletteToolbar[]
-		direction: ArrangedOrientation
 		el?: JSX.IntrinsicElements['div']
+		space?: JSX.IntrinsicElements['div']
 		toolbar?: JSX.IntrinsicElements['div']
 	},
 	scope: PaletteScope
 ) {
-	arranged(scope, { orientation: props.direction })
+	arranged(scope, { orientation: 'vertical' })
+	const parkingScope = scope as PaletteScope & { parkingBorder?: PaletteBorder }
+	const border = (parkingScope.parkingBorder ??= reactive<PaletteBorder>(
+		props.toolbars.map((toolbar) => reactive<PaletteTrack>([{ space: 0, toolbar }]))
+	))
 	return (
 		<div
 			{...props.el}
-			class={['palette-parking', `palette-${props.direction}`]}
+			class={['palette-parking', 'palette-horizontal', 'stack-vertical']}
 			data-palette-id={scope.palette?.id}
-			use:toolbarsContainer={props.direction}
+			use:toolbarsContainer="vertical"
 		>
-			<for each={props.toolbars}>
-				{(toolbar) => (
-					<Toolbar
-						border={[]}
-						region="top"
-						trackIndex={-1}
-						toolbar={toolbar}
-						direction={props.direction}
-						el={props.toolbar}
-					/>
+			<StackDropZone
+				border={border}
+				direction="horizontal"
+				index={0}
+				region="top"
+				el={props.space}
+			/>
+			<for each={border}>
+				{(track, position) => (
+					<>
+						<div class="palette-parking-row">
+							<button
+								if={scope.palette?.editing}
+								type="button"
+								class="palette-parking-remove"
+								aria-label="Delete toolbar"
+								onClick={(event: MouseEvent) => {
+									event.stopPropagation()
+									const toolbar = track[0]?.toolbar
+									if (!toolbar) return
+									removeToolbar(track, toolbar)
+									removeEmptyTrack(border, track)
+								}}
+							>
+								×
+							</button>
+							<Toolbar
+								border={border}
+								region="top"
+								track={track}
+								trackIndex={position.index}
+								toolbar={track[0]?.toolbar ?? []}
+								direction="horizontal"
+								el={props.toolbar}
+							/>
+						</div>
+						<StackDropZone
+							border={border}
+							direction="horizontal"
+							index={position.index + 1}
+							region="top"
+							el={props.space}
+						/>
+					</>
 				)}
 			</for>
 		</div>
@@ -1491,7 +1546,6 @@ export interface IdeProps<TSchema extends PaletteSchema = PaletteSchema> {
 	track?: JSX.IntrinsicElements['div']
 	space?: JSX.IntrinsicElements['div']
 	toolbar?: JSX.IntrinsicElements['div']
-	parkingEl?: JSX.IntrinsicElements['div']
 	children?: JSX.Children
 }
 

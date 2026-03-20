@@ -24,11 +24,13 @@
 	min-height: 0;
 }
 
-.toolbar-border.palette-horizontal {
+.toolbar-border.stack-vertical,
+.palette-parking.stack-vertical {
 	flex-direction: column;
 }
 
-.toolbar-border.palette-vertical {
+.toolbar-border.stack-horizontal,
+.palette-parking.stack-horizontal {
 	flex-direction: row;
 }
 
@@ -91,17 +93,37 @@
 		box-shadow 120ms ease;
 }
 
-.toolbar-border.palette-horizontal > .toolbar-stack-space {
+.toolbar-border.stack-vertical > .toolbar-stack-space,
+.palette-parking.stack-vertical > .toolbar-stack-space {
 	width: 100%;
 	min-block-size: 0;
 }
 
-.toolbar-border.palette-vertical > .toolbar-stack-space {
+.toolbar-border.stack-horizontal > .toolbar-stack-space,
+.palette-parking.stack-horizontal > .toolbar-stack-space {
 	height: 100%;
 	min-inline-size: 0;
 }
 
 .toolbar-track-space[data-active='true'] {
+	background: rgba(59, 130, 246, 0.16);
+	box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.55);
+}
+
+.toolbar-border.stack-vertical .toolbar-stack-space[data-proximity='true'],
+.toolbar-border.stack-vertical .toolbar-stack-space[data-active='true'],
+.palette-parking.stack-vertical .toolbar-stack-space[data-proximity='true'],
+.palette-parking.stack-vertical .toolbar-stack-space[data-active='true'] {
+	min-block-size: 8px;
+	background: rgba(59, 130, 246, 0.16);
+	box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.55);
+}
+
+.toolbar-border.stack-horizontal .toolbar-stack-space[data-proximity='true'],
+.toolbar-border.stack-horizontal .toolbar-stack-space[data-active='true'],
+.palette-parking.stack-horizontal .toolbar-stack-space[data-proximity='true'],
+.palette-parking.stack-horizontal .toolbar-stack-space[data-active='true'] {
+	min-inline-size: 8px;
 	background: rgba(59, 130, 246, 0.16);
 	box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.55);
 }
@@ -214,4 +236,43 @@
 .palette-parking.palette-vertical .toolbar {
 	flex-direction: column;
 	align-items: stretch;
+}
+
+.palette-parking-row {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	min-width: 0;
+	width: 100%;
+}
+
+.palette-parking-row > .toolbar {
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.palette-parking-remove {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	inline-size: 1.5rem;
+	block-size: 1.5rem;
+	padding: 0;
+	border: 1px solid rgba(148, 163, 184, 0.38);
+	border-radius: 999px;
+	background: rgba(15, 23, 42, 0.72);
+	color: rgba(226, 232, 240, 0.92);
+	cursor: pointer;
+	flex: 0 0 auto;
+	line-height: 1;
+	transition:
+		border-color 120ms ease,
+		background 120ms ease,
+		color 120ms ease;
+}
+
+.palette-parking-remove:hover {
+	border-color: rgba(96, 165, 250, 0.9);
+	background: rgba(29, 78, 216, 0.9);
+	color: #eff6ff;
 }

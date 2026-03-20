@@ -1,3 +1,4 @@
+import { listen } from '@sursaut/core'
 import { menuModel } from '@sursaut/ui'
 
 export default function MenuDemo() {
@@ -15,8 +16,7 @@ export default function MenuDemo() {
 			const details = root.querySelector('[data-test="menu-root"]') as HTMLDetailsElement | null
 			if (details) details.open = false
 		}
-		document.addEventListener('click', onClick)
-		return () => document.removeEventListener('click', onClick)
+		return listen(document, 'click', onClick as EventListener)
 	}
 
 	return (

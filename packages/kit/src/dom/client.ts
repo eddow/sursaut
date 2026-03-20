@@ -1,4 +1,4 @@
-import { document } from '@sursaut/core'
+import { document, listen } from '@sursaut/core'
 import { atom, reactive } from 'mutts'
 import { mountHeadContent } from '../head-mount.js'
 import { perf, recordPerf } from '../perf.js'
@@ -105,8 +105,7 @@ try {
 	const syncDark = (e: MediaQueryListEvent) => {
 		client.prefersDark = e.matches
 	}
-	darkQuery.addEventListener('change', syncDark)
-	cleanupFns.push(() => darkQuery.removeEventListener('change', syncDark))
+	cleanupFns.push(listen(darkQuery, 'change', syncDark as EventListener))
 } catch {
 	client.prefersDark = false
 }
@@ -168,8 +167,7 @@ function initializeClientListeners(): void {
 		syncVisibility()
 		syncFocus()
 	}
-	document.addEventListener('visibilitychange', visibilityHandler)
-	cleanupFns.push(() => document.removeEventListener('visibilitychange', visibilityHandler))
+	cleanupFns.push(listen(document, 'visibilitychange', visibilityHandler))
 	addWindowListener('online', syncOnline)
 	addWindowListener('offline', syncOnline)
 	addWindowListener('languagechange', syncLanguage)
@@ -287,9 +285,7 @@ function addWindowListener<K extends keyof WindowEventMap>(
 	type: K,
 	listener: (event: WindowEventMap[K]) => void
 ): void {
-	const handler = listener as EventListener
-	window.addEventListener(type, handler)
-	cleanupFns.push(() => window.removeEventListener(type, handler))
+	cleanupFns.push(listen(window, type, listener as EventListener))
 }
 
 function interceptHistoryMethod(method: 'pushState' | 'replaceState'): void {
