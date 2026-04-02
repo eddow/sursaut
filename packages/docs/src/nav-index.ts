@@ -55,6 +55,7 @@ export const navigation: NavSection[] = [
 			{ title: 'Forms', href: '/ui/forms' },
 			{ title: 'Overlays', href: '/ui/overlays' },
 			{ title: 'Layout', href: '/ui/layout' },
+			{ title: 'Palette', href: '/ui/palette' },
 			{ title: 'Progress', href: '/ui/progress' },
 			{ title: 'Status', href: '/ui/status' },
 			{ title: 'Stars', href: '/ui/stars' },

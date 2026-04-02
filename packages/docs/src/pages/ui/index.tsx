@@ -82,6 +82,11 @@ export default function UIPage() {
 				<code>@sursaut/adapter-pico</code> and are typically consumed through the{' '}
 				<code>@sursaut</code> front-end barrel.
 			</p>
+			<p>
+				The palette runtime is documented separately because it lives on the dedicated{' '}
+				<code>@sursaut/ui/palette</code> subpath rather than the root <code>@sursaut/ui</code>{' '}
+				entry. See <a href="/ui/palette">Palette</a> for the current API.
+			</p>
 
 			<Section title="Adapter Setup">
 				<p>
@@ -248,6 +253,12 @@ export default function UIPage() {
 								<code>Layout</code>
 							</td>
 							<td>Stack, Inline, Grid, AppShell, Container</td>
+						</tr>
+						<tr>
+							<td>
+								<code>@sursaut/ui/palette</code>
+							</td>
+							<td>Palette runtime, command-box helpers, and headless toolbar layout primitives</td>
 						</tr>
 					</tbody>
 				</table>

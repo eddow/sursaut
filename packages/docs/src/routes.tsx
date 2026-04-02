@@ -44,6 +44,7 @@ import InfiniteScrollPage from './pages/ui/infinite-scroll'
 import LayoutPage from './pages/ui/layout'
 import MenuPage from './pages/ui/menu'
 import OverlaysPage from './pages/ui/overlays'
+import PalettePage from './pages/ui/palette'
 import ProgressPage from './pages/ui/progress'
 import StarsPage from './pages/ui/stars'
 import StatusPage from './pages/ui/status'
@@ -81,6 +82,7 @@ const routes: AppRoute[] = [
 	{ path: '/ui/overlays', view: OverlaysPage },
 	{ path: '/ui/forms', view: FormsPage },
 	{ path: '/ui/layout', view: LayoutPage },
+	{ path: '/ui/palette', view: PalettePage },
 	{ path: '/ui/progress', view: ProgressPage },
 	{ path: '/ui/adapter', view: AdapterPage },
 	{ path: '/ui/status', view: StatusPage },

@@ -28,11 +28,17 @@ import type {
 	PaletteToolToolbarItem,
 } from './types'
 
+/**
+ * Factory signature used by `valueActions` to derive runnable commands from editable tools.
+ */
 export type PaletteValueAction<TTool extends PaletteEditableTool = PaletteEditableTool> = (
 	tool: TTool,
 	arg?: string
 ) => PaletteToolRun
 
+/**
+ * Registry of built-in value actions keyed by editable tool family.
+ */
 export type PaletteValueActions = {
 	[K in PaletteEditableToolOf['type']]: Record<
 		string,
@@ -40,6 +46,11 @@ export type PaletteValueActions = {
 	>
 }
 
+/**
+ * Built-in palette actions used by `toolId:action` specs.
+ *
+ * Today only numeric tools provide generic actions (`inc` and `dec`).
+ */
 export const valueActions: PaletteValueActions = {
 	// No need for valueActions for bool now - checkbutton is better than a "toggle" button
 	number: {
@@ -68,6 +79,9 @@ export const valueActions: PaletteValueActions = {
 	boolean: {},
 }
 
+/**
+ * Reader functions used to parse serialized values for each editable tool family.
+ */
 export const valueReader: {
 	[K in PaletteEditableToolOf['type']]: (
 		s: string
@@ -78,6 +92,9 @@ export const valueReader: {
 	boolean: (s) => ['1', 'true'].includes(s.toLowerCase()),
 }
 
+/**
+ * Error thrown when a palette tool spec, editor variant, or tool family cannot be resolved.
+ */
 export class PaletteError extends Error {
 	constructor(message: string) {
 		super(message)
@@ -87,42 +104,51 @@ export class PaletteError extends Error {
 
 let nextPaletteId = 0
 
+/**
+ * Returns a CSS style function that can be used to customize the appearance of a palette instance.
+ */
 function paletteInstanceStyle(id: string): () => void {
 	return componentStyle.css`
-		[data-palette-id='${id}'].editing .toolbar[data-palette-id='${id}'] {
-			cursor: grab;
-		}
+    [data-palette-id='${id}'].editing .toolbar[data-palette-id='${id}'] {
+      cursor: grab;
+    }
 
-		[data-palette-id='${id}'].editing .toolbar[data-palette-id='${id}']:hover {
-			z-index: 2;
-		}
+    [data-palette-id='${id}'].editing .toolbar[data-palette-id='${id}']:hover {
+      z-index: 2;
+    }
 
-		[data-palette-id='${id}'].editing .toolbar[data-palette-id='${id}']:hover::before {
-			opacity: 1;
-			background: rgba(96, 165, 250, 0.12);
-			box-shadow:
-				0 0 0 1px rgba(191, 219, 254, 0.45),
-				0 0 0 5px rgba(96, 165, 250, 0.18);
-		}
+    [data-palette-id='${id}'].editing .toolbar[data-palette-id='${id}']:hover::before {
+      opacity: 1;
+      background: rgba(96, 165, 250, 0.12);
+      box-shadow:
+        0 0 0 1px rgba(191, 219, 254, 0.45),
+        0 0 0 5px rgba(96, 165, 250, 0.18);
+    }
 
-		[data-palette-id='${id}'].editing
-			.toolbar-item-guard[data-palette-id='${id}']:hover {
-			background: rgba(96, 165, 250, 0.12);
-			box-shadow:
-				0 0 0 1px rgba(191, 219, 254, 0.42),
-				0 0 0 3px rgba(96, 165, 250, 0.14);
-		}
+    [data-palette-id='${id}'].editing
+      .toolbar-item-guard[data-palette-id='${id}']:hover {
+      background: rgba(96, 165, 250, 0.12);
+      box-shadow:
+        0 0 0 1px rgba(191, 219, 254, 0.42),
+        0 0 0 3px rgba(96, 165, 250, 0.14);
+    }
 
-		[data-palette-id='${id}'].editing
-			.toolbar-item-guard[data-palette-id='${id}']:active {
-			background: rgba(59, 130, 246, 0.12);
-			box-shadow:
-				0 0 0 1px rgba(191, 219, 254, 0.52),
-				0 0 0 4px rgba(96, 165, 250, 0.18);
-		}
-	`
+    [data-palette-id='${id}'].editing
+      .toolbar-item-guard[data-palette-id='${id}']:active {
+      background: rgba(59, 130, 246, 0.12);
+      box-shadow:
+        0 0 0 1px rgba(191, 219, 254, 0.52),
+        0 0 0 4px rgba(96, 165, 250, 0.18);
+    }
+  `
 }
 
+/**
+ * Runtime palette object.
+ *
+ * Construct it with a `PaletteConfig`, then hand it to `Ide`, `Toolbar`, command-box helpers,
+ * or your own adapter-specific editors.
+ */
 export class Palette<TSchema extends PaletteSchema = PaletteSchema>
 	implements PaletteInstance<TSchema>
 {
@@ -172,6 +198,9 @@ export class Palette<TSchema extends PaletteSchema = PaletteSchema>
 		return this.config.editable !== false && unwrap(palettes.editing) === unwrap(this)
 	}
 
+	/**
+	 * Resolve a palette tool spec string into a palette tool object.
+	 */
 	tool(spec: string): PaletteToolOf<TSchema> {
 		const pipeIndex = spec.indexOf('|')
 		if (pipeIndex >= 0) {
@@ -210,6 +239,9 @@ export class Palette<TSchema extends PaletteSchema = PaletteSchema>
 		return resolveTool(this.tools, spec) as PaletteToolOf<TSchema>
 	}
 
+	/**
+	 * Resolve the editor spec that would be used for a given item.
+	 */
 	resolveEditor<
 		TTool extends PaletteToolOf<TSchema> | undefined,
 		TItem extends PaletteItem<TSchema>,
@@ -234,6 +266,9 @@ export class Palette<TSchema extends PaletteSchema = PaletteSchema>
 		return spec as unknown as PaletteEditorSpec<TTool, TItem, TSchema>
 	}
 
+	/**
+	 * Render an item editor through the palette's configured editor registry.
+	 */
 	renderEditor<
 		TTool extends PaletteToolOf<TSchema> | undefined,
 		TItem extends PaletteItem<TSchema>,
@@ -246,6 +281,9 @@ export class Palette<TSchema extends PaletteSchema = PaletteSchema>
 		throw new PaletteError(`No editor available for palette tool "${item.tool}"`)
 	}
 
+	/**
+	 * Render an item configurator through the palette's configured editor registry.
+	 */
 	renderConfigurator<
 		TTool extends PaletteToolOf<TSchema> | undefined,
 		TItem extends PaletteItem<TSchema>,
@@ -256,6 +294,9 @@ export class Palette<TSchema extends PaletteSchema = PaletteSchema>
 		return undefined
 	}
 
+	/**
+	 * Toolbar component factory.
+	 */
 	readonly Toolbar = (
 		props: ToolbarProps<PaletteItem<TSchema>>,
 		scope: PaletteScope<TSchema> = {}
@@ -264,6 +305,9 @@ export class Palette<TSchema extends PaletteSchema = PaletteSchema>
 		return PaletteToolbarComponent(props, scope as PaletteScope)
 	}
 
+	/**
+	 * Ide component factory.
+	 */
 	readonly Ide = (
 		props: Omit<IdeProps<TSchema>, 'palette'>,
 		scope: Record<string, unknown> = {}
@@ -281,6 +325,9 @@ export class Palette<TSchema extends PaletteSchema = PaletteSchema>
 
 const returnValues = new WeakMap<PaletteToolEdit<unknown>, unknown>()
 
+/**
+ * Split a string into individual keywords.
+ */
 function splitPaletteKeywords(value: string): string[] {
 	return value
 		.split('.')
@@ -288,6 +335,9 @@ function splitPaletteKeywords(value: string): string[] {
 		.filter((entry) => entry.length > 0)
 }
 
+/**
+ * Expand an enum value into the searchable keywords used by the palette command box.
+ */
 export function paletteEnumValueKeywords<TValue extends string>(
 	value: PaletteToolEnumValue<TValue>
 ): string[] {
@@ -307,6 +357,9 @@ export function paletteEnumValueKeywords<TValue extends string>(
 	return Array.from(result)
 }
 
+/**
+ * Setter function used to update an editable tool's value.
+ */
 function setter(edit: PaletteToolEdit<unknown>, value: unknown): PaletteToolRun {
 	return {
 		can: true,
@@ -328,18 +381,27 @@ function setter(edit: PaletteToolEdit<unknown>, value: unknown): PaletteToolRun 
 	}
 }
 
+/**
+ * Type guard for runnable palette tools.
+ */
 export function isRunTool<TTools extends PaletteTools>(
 	tool: PaletteTool<TTools>
 ): tool is Extract<PaletteTool<TTools>, PaletteToolRun> {
 	return 'run' in tool
 }
 
+/**
+ * Type guard for editable palette tools.
+ */
 export function isEditableTool<TTools extends PaletteTools>(
 	tool: PaletteTool<TTools>
 ): tool is PaletteEditableTool<TTools> {
 	return 'type' in tool
 }
 
+/**
+ * Resolve the family key used by editor registries and command helpers.
+ */
 export function paletteToolFamily<TTools extends PaletteTools>(
 	tool: PaletteTool<TTools>
 ): PaletteToolFamily<TTools> {
@@ -348,12 +410,18 @@ export function paletteToolFamily<TTools extends PaletteTools>(
 	) as PaletteToolFamily<TTools>
 }
 
+/**
+ * Type guard for toolbar items that reference an actual palette tool.
+ */
 export function hasPaletteItemTool<TTool extends string, TEditor extends string, TConfig>(
 	item: PaletteToolbarItem<TTool, TEditor, TConfig>
 ): item is PaletteToolToolbarItem<TTool, TEditor, TConfig> {
 	return typeof item.tool === 'string'
 }
 
+/**
+ * Resolve the editor spec that would be used for a given item.
+ */
 export function resolvePaletteEditor<
 	TSchema extends PaletteSchema,
 	TTool extends PaletteToolOf<TSchema> | undefined,
@@ -366,6 +434,9 @@ export function resolvePaletteEditor<
 	return palette.resolveEditor(item, tool)
 }
 
+/**
+ * Render an item editor through the palette's configured editor registry.
+ */
 export function renderPaletteEditor<
 	TSchema extends PaletteSchema,
 	TTool extends PaletteToolOf<TSchema> | undefined,
@@ -379,6 +450,9 @@ export function renderPaletteEditor<
 	return palette.renderEditor(item, tool, scope)
 }
 
+/**
+ * Render an item configurator through the palette's configured editor registry.
+ */
 export function renderPaletteConfigurator<
 	TSchema extends PaletteSchema,
 	TTool extends PaletteToolOf<TSchema> | undefined,
@@ -392,6 +466,9 @@ export function renderPaletteConfigurator<
 	return palette.renderConfigurator(item, tool, scope)
 }
 
+/**
+ * Resolve a palette tool by its ID.
+ */
 function resolveTool<TTools extends PaletteTools>(
 	tools: TTools,
 	toolId: string
@@ -401,6 +478,9 @@ function resolveTool<TTools extends PaletteTools>(
 	return tool as PaletteTool<TTools>
 }
 
+/**
+ * Resolve an editable palette tool by its ID and optional family.
+ */
 function resolveEditableTool<
 	TTools extends PaletteTools,
 	TFamily extends PaletteEditableTool<TTools>['type'],
@@ -417,6 +497,9 @@ function resolveEditableTool<
 	return tool as PaletteEditableToolByFamily<TTools, TFamily> | PaletteEditableTool<TTools>
 }
 
+/**
+ * Create a setter runner for an editable tool.
+ */
 function paletteSetterRunner<
 	TSchema extends PaletteSchema,
 	TFamily extends PaletteEditableToolOf<TSchema>['type'],
@@ -435,6 +518,9 @@ function paletteSetterRunner<
 	return palette.setter ? palette.setter(runner, tool, value) : runner
 }
 
+/**
+ * Create an action runner for an editable tool.
+ */
 function paletteActionRunner<
 	TSchema extends PaletteSchema,
 	TFamily extends PaletteEditableToolOf<TSchema>['type'],
@@ -454,6 +540,9 @@ function paletteActionRunner<
 	return palette.runner ? palette.runner(runner, tool, spec ?? action) : runner
 }
 
+/**
+ * Resolve a palette tool spec string through a palette instance.
+ */
 export function paletteTool<TSchema extends PaletteSchema>(
 	palette: PaletteOf<TSchema>,
 	runnerDesc: string
@@ -461,7 +550,12 @@ export function paletteTool<TSchema extends PaletteSchema>(
 	return palette.tool(runnerDesc)
 }
 
+/**
+ * Global reactive palette UI state shared by layout components while editing and inspecting.
+ */
 export const palettes = reactive<{
+	/** Native HTML5 drag from the command-box catalogue (separate from pointer toolbar reordering). */
+	catalogDrag?: { palette: PaletteBase }
 	dragging?: PaletteDragging
 	editing?: PaletteBase
 	inspecting?: {
@@ -471,6 +565,32 @@ export const palettes = reactive<{
 	}
 }>({})
 
+let catalogNativeDragEndListenerRegistered = false
+
+function ensureCatalogNativeDragEndListener(): void {
+	if (typeof window === 'undefined' || catalogNativeDragEndListenerRegistered) return
+	catalogNativeDragEndListenerRegistered = true
+	window.addEventListener(
+		'dragend',
+		() => {
+			if (palettes.catalogDrag) delete palettes.catalogDrag
+		},
+		true
+	)
+}
+
+/**
+ * Mark a palette as having an active native (HTML5) catalogue drag so IDE drop zones stay hittable and highlighted.
+ * Cleared automatically on `window` `dragend` (capture).
+ */
+export function notifyPaletteCatalogNativeDragStarted(palette: PaletteBase): void {
+	ensureCatalogNativeDragEndListener()
+	palettes.catalogDrag = { palette }
+}
+
+/**
+ * Check whether a palette is the currently edited palette.
+ */
 export function isEditing(palette: PaletteBase | undefined): boolean {
 	return palette instanceof Palette ? palette.editing : unwrap(palettes.editing) === unwrap(palette)
 }

@@ -192,7 +192,7 @@ export class CompositeAttributes {
 		this.masked.add(key)
 	}
 
-	//@memoize
+	// TODO: @memoize
 	get keys(): Set<string> {
 		const keys = new Set<string>()
 		for (const layer of this.layers.map(collapseLayer)) {

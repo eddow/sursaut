@@ -18,6 +18,8 @@ import {
 describe('local drag', () => {
 	afterEach(() => {
 		document.body.innerHTML = ''
+		document.body.style.userSelect = ''
+		document.body.style.removeProperty('-webkit-user-select')
 	})
 
 	it('tracks mouse movement and stops on mouseup', () => {
@@ -197,6 +199,95 @@ describe('local drag', () => {
 		expect(setCapture).toHaveBeenCalledWith(7)
 		expect(hasCapture).toHaveBeenCalledWith(7)
 		expect(releaseCapture).toHaveBeenCalledWith(7)
+	})
+
+	it('shows a managed default preview and suppresses native feedback by default', () => {
+		const element = document.createElement('div')
+		document.body.appendChild(element)
+		element.addEventListener('mousedown', (event) => {
+			startLocalDragSession({ event })
+		})
+		const event = new MouseEvent('mousedown', {
+			bubbles: true,
+			cancelable: true,
+			clientX: 12,
+			clientY: 18,
+			buttons: 1,
+		})
+		element.dispatchEvent(event)
+		const preview = document.body.querySelector<HTMLElement>('[data-local-drag-preview="true"]')
+		expect(event.defaultPrevented).toBe(true)
+		expect(preview?.dataset.localDragPreviewKind).toBe('default')
+		expect(preview?.textContent).toBe('Dragging')
+		expect(document.body.style.userSelect).toBe('none')
+		window.dispatchEvent(
+			new MouseEvent('mouseup', {
+				clientX: 12,
+				clientY: 18,
+				buttons: 0,
+			})
+		)
+		expect(document.body.querySelector('[data-local-drag-preview="true"]')).toBeNull()
+		expect(document.body.style.userSelect).toBe('')
+	})
+
+	it('uses the provided preview text during a managed drag', () => {
+		const element = document.createElement('div')
+		document.body.appendChild(element)
+		element.addEventListener('mousedown', (event) => {
+			startLocalDragSession({
+				event,
+				preview: 'Move toolbar',
+			})
+		})
+		element.dispatchEvent(
+			new MouseEvent('mousedown', {
+				bubbles: true,
+				cancelable: true,
+				clientX: 8,
+				clientY: 10,
+				buttons: 1,
+			})
+		)
+		const preview = document.body.querySelector<HTMLElement>('[data-local-drag-preview="true"]')
+		expect(preview?.dataset.localDragPreviewKind).toBe('text')
+		expect(preview?.textContent).toBe('Move toolbar')
+		window.dispatchEvent(
+			new MouseEvent('mouseup', {
+				clientX: 8,
+				clientY: 10,
+				buttons: 0,
+			})
+		)
+	})
+
+	it('can leave preview handling native when requested', () => {
+		const element = document.createElement('div')
+		document.body.appendChild(element)
+		element.addEventListener('mousedown', (event) => {
+			startLocalDragSession({
+				event,
+				previewBehavior: 'native',
+			})
+		})
+		const event = new MouseEvent('mousedown', {
+			bubbles: true,
+			cancelable: true,
+			clientX: 20,
+			clientY: 24,
+			buttons: 1,
+		})
+		element.dispatchEvent(event)
+		expect(event.defaultPrevented).toBe(false)
+		expect(document.body.querySelector('[data-local-drag-preview="true"]')).toBeNull()
+		expect(document.body.style.userSelect).toBe('')
+		window.dispatchEvent(
+			new MouseEvent('mouseup', {
+				clientX: 20,
+				clientY: 24,
+				buttons: 0,
+			})
+		)
 	})
 })
 

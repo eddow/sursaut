@@ -141,15 +141,13 @@ These are related to the UI interaction layer but are not model-returning APIs.
 
 The palette system is exported from the `@sursaut/ui/palette` subpath rather than the root package entry.
 
-It includes:
+The current palette API is centered on:
 
-- `createPaletteModel`
-- `paletteCommandBoxModel`
-- `paletteAddItemModel`
-- `paletteToolbarModel`
-- `paletteStatusbarModel`
-- `paletteDisplayCustomizationModel`
-- `paletteContainerModel`
+- `new Palette(config)`
+- layout components such as `Ide`, `Toolbar`, `ToolbarTrack`, `ToolbarBorder`, and `Parking`
+- command helpers such as `paletteCommandEntries()` and `paletteCommandBoxModel()`
+- add-item helpers such as `paletteAddItemEntries()` and `paletteDerivedVariants()`
+- keyboard helpers such as `createPaletteKeys()`
 
 See [palette.md](./palette.md).
 

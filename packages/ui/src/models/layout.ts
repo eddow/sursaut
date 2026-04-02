@@ -1,4 +1,3 @@
-import { listen } from '@sursaut/core'
 import type { ElementPassthroughProps } from '../shared/types'
 // ── SpacingToken ─────────────────────────────────────────────────────────────
 
@@ -320,11 +319,17 @@ export function appShellModel(props: AppShellProps): AppShellModel {
 		get setupShadow() {
 			return (headerEl: HTMLElement): (() => void) => {
 				if (!model.shadowOnScroll || typeof window === 'undefined') return () => {}
+				const win = window
 				const onScroll = () => {
-					headerEl.classList.toggle('shadow', window.scrollY > 0)
+					headerEl.classList.toggle('shadow', win.scrollY > 0)
 				}
 				onScroll()
-				return listen(window, 'scroll', onScroll, { passive: true })
+				// Use the realm's own `addEventListener`: `listen()` may call a captured
+				// `EventTarget.prototype` hook from another global, which breaks in jsdom/Vitest.
+				win.addEventListener('scroll', onScroll, { passive: true })
+				return () => {
+					win.removeEventListener('scroll', onScroll)
+				}
 			}
 		},
 	}

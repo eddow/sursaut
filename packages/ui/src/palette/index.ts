@@ -3,6 +3,9 @@ import './palette.css'
 export type {
 	PaletteAddItemCommandEntry,
 	PaletteAddItemSource,
+	PaletteCatalogDragPayload,
+	PaletteCatalogDragSpecPayload,
+	PaletteCatalogDragVariantPayload,
 	PaletteCommandBoxEntry,
 	PaletteCommandBoxKeywordSuggestion,
 	PaletteCommandBoxModel,
@@ -12,14 +15,21 @@ export type {
 export {
 	handlePaletteCommandBoxInputKeydown,
 	handlePaletteCommandChipKeydown,
+	PALETTE_CATALOG_DRAG_MIME,
 	paletteAddItemEntries,
+	paletteCatalogEntries,
 	paletteCommandBoxModel,
 	paletteCommandEntries,
 	paletteDerivedVariants,
 	paletteEnumSubsetValues,
+	paletteToolbarItemFromCatalogPayload,
+	parsePaletteCatalogDragPayload,
+	serializePaletteCatalogDragPayload,
 	setPaletteCommandBoxInput,
 } from './command-box'
+export type { IdeProps, ToolbarProps } from './components'
 export {
+	beginPaletteCatalogInsertDrag,
 	Ide,
 	Parking,
 	Toolbar,
@@ -28,11 +38,17 @@ export {
 } from './components'
 export { createPaletteKeys, normalizePaletteKeystroke, paletteKeystrokeFromEvent } from './keys'
 export {
+	isEditableTool,
 	isEditing,
+	isRunTool,
+	notifyPaletteCatalogNativeDragStarted,
 	Palette,
 	palettes,
 	paletteTool,
+	paletteToolFamily,
 	renderPaletteConfigurator,
+	renderPaletteEditor,
+	resolvePaletteEditor,
 	valueActions,
 } from './palette'
 export type {
@@ -42,6 +58,10 @@ export type {
 	PaletteConfiguratorComponent,
 	PaletteEditableTool,
 	PaletteEditorContext,
+	PaletteEditorFamilyRegistry,
+	PaletteEditorOnlyRegistry,
+	PaletteEditorRegistry,
+	PaletteEditorSpec,
 	PaletteItem,
 	PaletteKeyBindings as PaletteKeyBinding,
 	PaletteKeys,
@@ -53,6 +73,7 @@ export type {
 	PaletteToolbar,
 	PaletteToolbarItem,
 	PaletteToolbarItemByEditor,
+	PaletteToolFamily,
 	PaletteTools,
 	PaletteTrack,
 } from './types'

@@ -1,4 +1,5 @@
-import { Button, Card, Grid, Inline, Select, Stack, Switch, Toolbar } from '@sursaut'
+import { Button, Card, Grid, Inline, Select, Stack, Switch } from '@sursaut'
+import { Toolbar } from '@sursaut/adapter-pico'
 import { reactive } from 'mutts'
 import { ApiTable, Code, Demo, Section } from '../../components'
 

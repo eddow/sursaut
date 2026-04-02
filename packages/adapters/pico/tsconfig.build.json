@@ -8,6 +8,7 @@
 			"@sursaut/kit": ["../../kit/dist/dom"],
 			"@sursaut/kit/*": ["../../kit/dist/*"],
 			"@sursaut/ui": ["../../ui/dist/index"],
+			"@sursaut/ui/palette": ["../../ui/dist/palette/index"],
 			"@sursaut/ui/*": ["../../ui/dist/*"],
 			"@sursaut/ui/models": ["../../ui/dist/models/index"],
 			"mutts": ["../../../../mutts/dist/browser"],

@@ -10,6 +10,10 @@ export default defineConfig({
 			{ find: '@sursaut/adapter-pico/css', replacement: resolve(__dirname, '../src/pico.sass') },
 			{ find: '@sursaut/adapter-pico', replacement: resolve(__dirname, '../src/index.ts') },
 			{
+				find: '@sursaut/ui/palette',
+				replacement: resolve(__dirname, '../../../ui/src/palette/index.ts'),
+			},
+			{
 				find: '@sursaut/ui/models',
 				replacement: resolve(__dirname, '../../../ui/src/models/index.ts'),
 			},

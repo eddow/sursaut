@@ -1,11 +1,10 @@
 import type { Children as SourceChildren, SursautElement, Env } from '../lib/sursaut-element'
 import type { StyleInput } from '../lib/styles'
-import type { EffectAccess, EffectCloser } from 'mutts'
+import type { EffectAccess, EffectCloser, MorphPosition } from 'mutts'
 
 declare global {
 	var h: (type: any, props?: any, ...children: any[]) => JSX.Element
 	var Fragment: (props: any, env?: any) => any
-	const window: never // Prevent accidental window usage in SSR - import from @sursaut/core instead
 	type ComponentFunction<P extends Record<string, any> = any, E extends Env = Env> = (
 		props: P,
 		env: E
@@ -118,7 +117,9 @@ declare global {
 		type ThisBinding<T> = ElementResult<T> | ((mounted: ElementResult<T>) => void) | undefined
 
 		type ComponentIntrinsicAttributes<C> = C extends (props: any, env: any) => infer N
-			? { this?: ThisBinding<N> } & MetaAttributes<any, N>
+			? N extends Node | readonly Node[]
+				? { this?: ThisBinding<N> } & MetaAttributes<any, N>
+				: { this?: ThisBinding<N> }
 			: {}
 
 		// Override the default JSX children handling
@@ -281,6 +282,13 @@ declare global {
 				itemType?: string
 				role?: string
 				innerHTML?: string
+				draggable?: boolean
+				onDragStart?: (event: DragEvent) => void
+				onDragEnd?: (event: DragEvent) => void
+				onDragOver?: (event: DragEvent) => void
+				onDragEnter?: (event: DragEvent) => void
+				onDragLeave?: (event: DragEvent) => void
+				onDrop?: (event: DragEvent) => void
 			}
 
 		// Reusable mouse event handlers for DOM elements
@@ -399,368 +407,367 @@ declare global {
 			children: (item: T, position: MorphPosition) => JSX.Element | null | undefined | false
 		}
 
-		interface IntrinsicElements
-			extends HTMLTagElementsMap,
-				SVGTagElementsMap,
-				MathMLTagElementsMap {
-			dynamic: BaseHTMLAttributes<HTMLElement> & {
-				tag: HTMLElementTag | ComponentFunction | (string & {})
-				children?: Children
-				[key: string]: any
-			}
-			env: ElementIntrinsicAttributes<Node | Node[]> & {
-				children?: Children
-				[key: string]: any
-			}
-			fragment: ElementIntrinsicAttributes<Node | Node[]> & {
-				children?: Children
-			}
-			for: ElementIntrinsicAttributes<Node[]> & ForElementProps
-			try: ElementIntrinsicAttributes<Node[]> & {
-				catch?: (error: unknown, reset?: () => void) => JSX.Element
-				children?: Children
-			}
+		type IntrinsicElements = HTMLTagElementsMap &
+			SVGTagElementsMap &
+			MathMLTagElementsMap & {
+				dynamic: BaseHTMLAttributes<HTMLElement> & {
+					tag: HTMLElementTag | ComponentFunction | (string & {})
+					children?: Children
+					[key: string]: any
+				}
+				env: ElementIntrinsicAttributes<Node | Node[]> & {
+					children?: Children
+					[key: string]: any
+				}
+				fragment: ElementIntrinsicAttributes<Node | Node[]> & {
+					children?: Children
+				}
+				for: ElementIntrinsicAttributes<Node[]> & ForElementProps
+				try: ElementIntrinsicAttributes<Node[]> & {
+					catch?: (error: unknown, reset?: () => void) => JSX.Element
+					children?: Children
+				}
 
-			// Form Elements
-			input:
-				| (BaseHTMLAttributes<HTMLInputElement> & InputNumber)
-				| (BaseHTMLAttributes<HTMLInputElement> & InputString)
-				| (BaseHTMLAttributes<HTMLInputElement> & InputBoolean)
+				// Form Elements
+				input:
+					| (BaseHTMLAttributes<HTMLInputElement> & InputNumber)
+					| (BaseHTMLAttributes<HTMLInputElement> & InputString)
+					| (BaseHTMLAttributes<HTMLInputElement> & InputBoolean)
 
-			textarea: BaseHTMLAttributes<HTMLTextAreaElement> & {
-				value?: string
-				'update:value'?(value: string): void
-				placeholder?: string
-				disabled?: boolean
-				required?: boolean
-				readOnly?: boolean
-				name?: string
-				form?: string
-				rows?: number
-				cols?: number
-				maxLength?: number
-				minLength?: number
-				dirName?: string
-				wrap?: 'soft' | 'hard' | 'off' | (string & {})
-				autoComplete?: string
-				autoCorrect?: 'on' | 'off' | (string & {})
-				autoCapitalize?:
-					| 'off'
-					| 'none'
-					| 'on'
-					| 'sentences'
-					| 'words'
-					| 'characters'
-					| (string & {})
-				spellCheck?: boolean | 'true' | 'false' | (string & {})
-				// Events
-				onInput?: (event: Event) => void
-				onChange?: (event: Event) => void
-				onSelect?: (event: Event) => void
-				onInvalid?: (event: Event) => void
+				textarea: BaseHTMLAttributes<HTMLTextAreaElement> & {
+					value?: string
+					'update:value'?(value: string): void
+					placeholder?: string
+					disabled?: boolean
+					required?: boolean
+					readOnly?: boolean
+					name?: string
+					form?: string
+					rows?: number
+					cols?: number
+					maxLength?: number
+					minLength?: number
+					dirName?: string
+					wrap?: 'soft' | 'hard' | 'off' | (string & {})
+					autoComplete?: string
+					autoCorrect?: 'on' | 'off' | (string & {})
+					autoCapitalize?:
+						| 'off'
+						| 'none'
+						| 'on'
+						| 'sentences'
+						| 'words'
+						| 'characters'
+						| (string & {})
+					spellCheck?: boolean | 'true' | 'false' | (string & {})
+					// Events
+					onInput?: (event: Event) => void
+					onChange?: (event: Event) => void
+					onSelect?: (event: Event) => void
+					onInvalid?: (event: Event) => void
+				}
+
+				select: BaseHTMLAttributes<HTMLSelectElement> & {
+					value?: any
+					'update:value'?(value: any): void
+					disabled?: boolean
+					required?: boolean
+					name?: string
+					form?: string
+					multiple?: boolean
+					size?: number
+					autoComplete?: string
+					// Events
+					onChange?: (event: Event) => void
+					onSelect?: (event: Event) => void
+					onInvalid?: (event: Event) => void
+				}
+
+				button: BaseHTMLAttributes<HTMLButtonElement> & {
+					type?: 'button' | 'submit' | 'reset' | (string & {})
+					disabled?: boolean
+					autoFocus?: boolean
+					form?: string
+					formAction?: string
+					formEnctype?: string
+					formMethod?: string
+					formNoValidate?: boolean
+					formTarget?: string
+					name?: string
+					value?: string
+				}
+
+				form: BaseHTMLAttributes<HTMLFormElement> & {
+					action?: string
+					method?: 'get' | 'post' | 'put' | 'delete' | 'patch' | (string & {})
+					enctype?: string
+					autoComplete?: string
+					noValidate?: boolean
+					target?: string
+					name?: string
+					accept?: string
+					acceptCharset?: string
+					// Events
+					onSubmit?: (event: SubmitEvent) => void
+					onReset?: (event: Event) => void
+					onInvalid?: (event: Event) => void
+				}
+
+				label: BaseHTMLAttributes<HTMLLabelElement> & {
+					htmlFor?: string
+					form?: string
+				}
+
+				fieldset: BaseHTMLAttributes<HTMLFieldSetElement> & {
+					disabled?: boolean
+					form?: string
+					name?: string
+				}
+
+				legend: BaseHTMLAttributes<HTMLLegendElement> & {}
+
+				// Media Elements
+				img: BaseHTMLAttributes<HTMLImageElement> & {
+					src?: string
+					alt?: string
+					width?: number | string
+					height?: number | string
+					crossOrigin?: 'anonymous' | 'use-credentials' | (string & {})
+					useMap?: string
+					isMap?: boolean
+					loading?: 'lazy' | 'eager' | (string & {})
+					decoding?: 'sync' | 'async' | 'auto' | (string & {})
+					// Events
+					onLoad?: (event: Event) => void
+					onError?: (event: Event) => void
+					onAbort?: (event: Event) => void
+				}
+
+				video: BaseHTMLAttributes<HTMLVideoElement> & {
+					src?: string
+					poster?: string
+					preload?: 'none' | 'metadata' | 'auto' | (string & {})
+					autoplay?: boolean
+					loop?: boolean
+					muted?: boolean
+					controls?: boolean
+					width?: number | string
+					height?: number | string
+					crossOrigin?: 'anonymous' | 'use-credentials' | (string & {})
+					playsInline?: boolean
+					// Events
+					onLoadstart?: (event: Event) => void
+					onLoadeddata?: (event: Event) => void
+					onLoadedmetadata?: (event: Event) => void
+					onCanplay?: (event: Event) => void
+					onCanplaythrough?: (event: Event) => void
+					onPlay?: (event: Event) => void
+					onPlaying?: (event: Event) => void
+					onPause?: (event: Event) => void
+					onEnded?: (event: Event) => void
+					onError?: (event: Event) => void
+					onAbort?: (event: Event) => void
+					onEmptied?: (event: Event) => void
+					onStalled?: (event: Event) => void
+					onSuspend?: (event: Event) => void
+					onWaiting?: (event: Event) => void
+					onDurationchange?: (event: Event) => void
+					onTimeupdate?: (event: Event) => void
+					onProgress?: (event: Event) => void
+					onRatechange?: (event: Event) => void
+					onVolumechange?: (event: Event) => void
+					onSeeked?: (event: Event) => void
+					onSeeking?: (event: Event) => void
+				}
+
+				audio: BaseHTMLAttributes<HTMLAudioElement> & {
+					src?: string
+					preload?: 'none' | 'metadata' | 'auto' | (string & {})
+					autoplay?: boolean
+					loop?: boolean
+					muted?: boolean
+					controls?: boolean
+					crossOrigin?: 'anonymous' | 'use-credentials' | (string & {})
+					// Events
+					onLoadstart?: (event: Event) => void
+					onLoadeddata?: (event: Event) => void
+					onLoadedmetadata?: (event: Event) => void
+					onCanplay?: (event: Event) => void
+					onCanplaythrough?: (event: Event) => void
+					onPlay?: (event: Event) => void
+					onPlaying?: (event: Event) => void
+					onPause?: (event: Event) => void
+					onEnded?: (event: Event) => void
+					onError?: (event: Event) => void
+					onAbort?: (event: Event) => void
+					onEmptied?: (event: Event) => void
+					onStalled?: (event: Event) => void
+					onSuspend?: (event: Event) => void
+					onWaiting?: (event: Event) => void
+					onDurationchange?: (event: Event) => void
+					onTimeupdate?: (event: Event) => void
+					onProgress?: (event: Event) => void
+					onRatechange?: (event: Event) => void
+					onVolumechange?: (event: Event) => void
+					onSeeked?: (event: Event) => void
+					onSeeking?: (event: Event) => void
+				}
+
+				// Interactive Elements
+				a: BaseHTMLAttributes<HTMLAnchorElement> & {
+					href?: string
+					target?: '_blank' | '_self' | '_parent' | '_top' | string
+					rel?: string
+					download?: string
+					hrefLang?: string
+					type?: string
+					referrerPolicy?: string
+				}
+
+				// Additional HTML elements with notable attributes
+				dialog: BaseHTMLAttributes<HTMLDialogElement> & {
+					open?: boolean
+					onCancel?: (event: Event) => void
+					onClose?: (event: Event) => void
+				}
+
+				details: BaseHTMLAttributes<HTMLDetailsElement> & {
+					open?: boolean
+					onToggle?: (event: Event) => void
+				}
+
+				track: BaseHTMLAttributes<HTMLTrackElement> & {
+					default?: boolean
+					kind?: 'subtitles' | 'captions' | 'descriptions' | 'chapters' | 'metadata' | (string & {})
+					src?: string
+					srclang?: string
+					label?: string
+				}
+
+				script: BaseHTMLAttributes<HTMLScriptElement> & {
+					src?: string
+					type?: string
+					async?: boolean
+					defer?: boolean
+					nomodule?: boolean
+					crossOrigin?: 'anonymous' | 'use-credentials' | (string & {})
+					integrity?: string
+					referrerPolicy?: string
+					onLoad?: (event: Event) => void
+					onError?: (event: Event) => void
+				}
+
+				iframe: BaseHTMLAttributes<HTMLIFrameElement> & {
+					src?: string
+					srcDoc?: string
+					name?: string
+					width?: number | string
+					height?: number | string
+					allow?: string
+					sandbox?: string
+					loading?: 'eager' | 'lazy' | (string & {})
+					referrerPolicy?: string
+					allowFullScreen?: boolean
+					onLoad?: (event: Event) => void
+					onError?: (event: Event) => void
+				}
+
+				ol: BaseHTMLAttributes<HTMLOListElement> & {
+					reversed?: boolean
+					start?: number
+					type?: '1' | 'a' | 'A' | 'i' | 'I' | (string & {})
+				}
+
+				option: BaseHTMLAttributes<HTMLOptionElement> & {
+					disabled?: boolean
+					selected?: boolean
+					label?: string
+					value?: string
+				}
+
+				optgroup: BaseHTMLAttributes<HTMLOptGroupElement> & {
+					disabled?: boolean
+					label?: string
+				}
+
+				progress: BaseHTMLAttributes<HTMLProgressElement> & {
+					value?: number | string
+					max?: number | string
+				}
+
+				meter: BaseHTMLAttributes<HTMLMeterElement> & {
+					value?: number | string
+					min?: number | string
+					max?: number | string
+					low?: number | string
+					high?: number | string
+					optimum?: number | string
+				}
+
+				link: BaseHTMLAttributes<HTMLLinkElement> & {
+					rel?: string
+					href?: string
+					as?: string
+					crossOrigin?: 'anonymous' | 'use-credentials' | (string & {})
+					disabled?: boolean
+					fetchPriority?: 'high' | 'low' | 'auto' | (string & {})
+					imageSizes?: string
+					imageSrcSet?: string
+					media?: string
+					referrerPolicy?: string
+					integrity?: string
+					type?: string
+					sizes?: string
+					onLoad?: (event: Event) => void
+					onError?: (event: Event) => void
+				}
+
+				source: BaseHTMLAttributes<HTMLSourceElement> & {
+					src?: string
+					type?: string
+					srcSet?: string
+					sizes?: string
+					media?: string
+				}
+
+				area: BaseHTMLAttributes<HTMLAreaElement> & {
+					alt?: string
+					coords?: string
+					download?: string | boolean
+					href?: string
+					rel?: string
+					shape?: 'rect' | 'circle' | 'poly' | 'default' | (string & {})
+					target?: string
+					referrerPolicy?: string
+				}
+
+				map: BaseHTMLAttributes<HTMLMapElement> & {
+					name?: string
+				}
+
+				canvas: BaseHTMLAttributes<HTMLCanvasElement> & {
+					width?: number | string
+					height?: number | string
+				}
+
+				col: BaseHTMLAttributes<HTMLTableColElement> & { span?: number }
+				colgroup: BaseHTMLAttributes<HTMLTableColElement> & { span?: number }
+				/* thead/tbody/tfoot/tr omitted since they add no extra attributes */
+				th: BaseHTMLAttributes<HTMLTableCellElement> & {
+					abbr?: string
+					colSpan?: number
+					rowSpan?: number
+					headers?: string
+					scope?: 'row' | 'col' | 'rowgroup' | 'colgroup' | 'auto' | (string & {})
+				}
+				td: BaseHTMLAttributes<HTMLTableCellElement> & {
+					colSpan?: number
+					rowSpan?: number
+					headers?: string
+				}
+
+				slot: BaseHTMLAttributes<HTMLSlotElement> & { name?: string }
 			}
-
-			select: BaseHTMLAttributes<HTMLSelectElement> & {
-				value?: any
-				'update:value'?(value: any): void
-				disabled?: boolean
-				required?: boolean
-				name?: string
-				form?: string
-				multiple?: boolean
-				size?: number
-				autoComplete?: string
-				// Events
-				onChange?: (event: Event) => void
-				onSelect?: (event: Event) => void
-				onInvalid?: (event: Event) => void
-			}
-
-			button: BaseHTMLAttributes<HTMLButtonElement> & {
-				type?: 'button' | 'submit' | 'reset' | (string & {})
-				disabled?: boolean
-				autoFocus?: boolean
-				form?: string
-				formAction?: string
-				formEnctype?: string
-				formMethod?: string
-				formNoValidate?: boolean
-				formTarget?: string
-				name?: string
-				value?: string
-			}
-
-			form: BaseHTMLAttributes<HTMLFormElement> & {
-				action?: string
-				method?: 'get' | 'post' | 'put' | 'delete' | 'patch' | (string & {})
-				enctype?: string
-				autoComplete?: string
-				noValidate?: boolean
-				target?: string
-				name?: string
-				accept?: string
-				acceptCharset?: string
-				// Events
-				onSubmit?: (event: SubmitEvent) => void
-				onReset?: (event: Event) => void
-				onInvalid?: (event: Event) => void
-			}
-
-			label: BaseHTMLAttributes<HTMLLabelElement> & {
-				htmlFor?: string
-				form?: string
-			}
-
-			fieldset: BaseHTMLAttributes<HTMLFieldSetElement> & {
-				disabled?: boolean
-				form?: string
-				name?: string
-			}
-
-			legend: BaseHTMLAttributes<HTMLLegendElement> & {}
-
-			// Media Elements
-			img: BaseHTMLAttributes<HTMLImageElement> & {
-				src?: string
-				alt?: string
-				width?: number | string
-				height?: number | string
-				crossOrigin?: 'anonymous' | 'use-credentials' | (string & {})
-				useMap?: string
-				isMap?: boolean
-				loading?: 'lazy' | 'eager' | (string & {})
-				decoding?: 'sync' | 'async' | 'auto' | (string & {})
-				// Events
-				onLoad?: (event: Event) => void
-				onError?: (event: Event) => void
-				onAbort?: (event: Event) => void
-			}
-
-			video: BaseHTMLAttributes<HTMLVideoElement> & {
-				src?: string
-				poster?: string
-				preload?: 'none' | 'metadata' | 'auto' | (string & {})
-				autoplay?: boolean
-				loop?: boolean
-				muted?: boolean
-				controls?: boolean
-				width?: number | string
-				height?: number | string
-				crossOrigin?: 'anonymous' | 'use-credentials' | (string & {})
-				playsInline?: boolean
-				// Events
-				onLoadstart?: (event: Event) => void
-				onLoadeddata?: (event: Event) => void
-				onLoadedmetadata?: (event: Event) => void
-				onCanplay?: (event: Event) => void
-				onCanplaythrough?: (event: Event) => void
-				onPlay?: (event: Event) => void
-				onPlaying?: (event: Event) => void
-				onPause?: (event: Event) => void
-				onEnded?: (event: Event) => void
-				onError?: (event: Event) => void
-				onAbort?: (event: Event) => void
-				onEmptied?: (event: Event) => void
-				onStalled?: (event: Event) => void
-				onSuspend?: (event: Event) => void
-				onWaiting?: (event: Event) => void
-				onDurationchange?: (event: Event) => void
-				onTimeupdate?: (event: Event) => void
-				onProgress?: (event: Event) => void
-				onRatechange?: (event: Event) => void
-				onVolumechange?: (event: Event) => void
-				onSeeked?: (event: Event) => void
-				onSeeking?: (event: Event) => void
-			}
-
-			audio: BaseHTMLAttributes<HTMLAudioElement> & {
-				src?: string
-				preload?: 'none' | 'metadata' | 'auto' | (string & {})
-				autoplay?: boolean
-				loop?: boolean
-				muted?: boolean
-				controls?: boolean
-				crossOrigin?: 'anonymous' | 'use-credentials' | (string & {})
-				// Events
-				onLoadstart?: (event: Event) => void
-				onLoadeddata?: (event: Event) => void
-				onLoadedmetadata?: (event: Event) => void
-				onCanplay?: (event: Event) => void
-				onCanplaythrough?: (event: Event) => void
-				onPlay?: (event: Event) => void
-				onPlaying?: (event: Event) => void
-				onPause?: (event: Event) => void
-				onEnded?: (event: Event) => void
-				onError?: (event: Event) => void
-				onAbort?: (event: Event) => void
-				onEmptied?: (event: Event) => void
-				onStalled?: (event: Event) => void
-				onSuspend?: (event: Event) => void
-				onWaiting?: (event: Event) => void
-				onDurationchange?: (event: Event) => void
-				onTimeupdate?: (event: Event) => void
-				onProgress?: (event: Event) => void
-				onRatechange?: (event: Event) => void
-				onVolumechange?: (event: Event) => void
-				onSeeked?: (event: Event) => void
-				onSeeking?: (event: Event) => void
-			}
-
-			// Interactive Elements
-			a: BaseHTMLAttributes<HTMLAnchorElement> & {
-				href?: string
-				target?: '_blank' | '_self' | '_parent' | '_top' | string
-				rel?: string
-				download?: string
-				hrefLang?: string
-				type?: string
-				referrerPolicy?: string
-			}
-
-			// Additional HTML elements with notable attributes
-			dialog: BaseHTMLAttributes<HTMLDialogElement> & {
-				open?: boolean
-				onCancel?: (event: Event) => void
-				onClose?: (event: Event) => void
-			}
-
-			details: BaseHTMLAttributes<HTMLDetailsElement> & {
-				open?: boolean
-				onToggle?: (event: Event) => void
-			}
-
-			track: BaseHTMLAttributes<HTMLTrackElement> & {
-				default?: boolean
-				kind?: 'subtitles' | 'captions' | 'descriptions' | 'chapters' | 'metadata' | (string & {})
-				src?: string
-				srclang?: string
-				label?: string
-			}
-
-			script: BaseHTMLAttributes<HTMLScriptElement> & {
-				src?: string
-				type?: string
-				async?: boolean
-				defer?: boolean
-				nomodule?: boolean
-				crossOrigin?: 'anonymous' | 'use-credentials' | (string & {})
-				integrity?: string
-				referrerPolicy?: string
-				onLoad?: (event: Event) => void
-				onError?: (event: Event) => void
-			}
-
-			iframe: BaseHTMLAttributes<HTMLIFrameElement> & {
-				src?: string
-				srcDoc?: string
-				name?: string
-				width?: number | string
-				height?: number | string
-				allow?: string
-				sandbox?: string
-				loading?: 'eager' | 'lazy' | (string & {})
-				referrerPolicy?: string
-				allowFullScreen?: boolean
-				onLoad?: (event: Event) => void
-				onError?: (event: Event) => void
-			}
-
-			ol: BaseHTMLAttributes<HTMLOListElement> & {
-				reversed?: boolean
-				start?: number
-				type?: '1' | 'a' | 'A' | 'i' | 'I' | (string & {})
-			}
-
-			option: BaseHTMLAttributes<HTMLOptionElement> & {
-				disabled?: boolean
-				selected?: boolean
-				label?: string
-				value?: string
-			}
-
-			optgroup: BaseHTMLAttributes<HTMLOptGroupElement> & {
-				disabled?: boolean
-				label?: string
-			}
-
-			progress: BaseHTMLAttributes<HTMLProgressElement> & {
-				value?: number | string
-				max?: number | string
-			}
-
-			meter: BaseHTMLAttributes<HTMLMeterElement> & {
-				value?: number | string
-				min?: number | string
-				max?: number | string
-				low?: number | string
-				high?: number | string
-				optimum?: number | string
-			}
-
-			link: BaseHTMLAttributes<HTMLLinkElement> & {
-				rel?: string
-				href?: string
-				as?: string
-				crossOrigin?: 'anonymous' | 'use-credentials' | (string & {})
-				disabled?: boolean
-				fetchPriority?: 'high' | 'low' | 'auto' | (string & {})
-				imageSizes?: string
-				imageSrcSet?: string
-				media?: string
-				referrerPolicy?: string
-				integrity?: string
-				type?: string
-				sizes?: string
-				onLoad?: (event: Event) => void
-				onError?: (event: Event) => void
-			}
-
-			source: BaseHTMLAttributes<HTMLSourceElement> & {
-				src?: string
-				type?: string
-				srcSet?: string
-				sizes?: string
-				media?: string
-			}
-
-			area: BaseHTMLAttributes<HTMLAreaElement> & {
-				alt?: string
-				coords?: string
-				download?: string | boolean
-				href?: string
-				rel?: string
-				shape?: 'rect' | 'circle' | 'poly' | 'default' | (string & {})
-				target?: string
-				referrerPolicy?: string
-			}
-
-			map: BaseHTMLAttributes<HTMLMapElement> & {
-				name?: string
-			}
-
-			canvas: BaseHTMLAttributes<HTMLCanvasElement> & {
-				width?: number | string
-				height?: number | string
-			}
-
-			col: BaseHTMLAttributes<HTMLTableColElement> & { span?: number }
-			colgroup: BaseHTMLAttributes<HTMLTableColElement> & { span?: number }
-			/* thead/tbody/tfoot/tr omitted since they add no extra attributes */
-			th: BaseHTMLAttributes<HTMLTableCellElement> & {
-				abbr?: string
-				colSpan?: number
-				rowSpan?: number
-				headers?: string
-				scope?: 'row' | 'col' | 'rowgroup' | 'colgroup' | 'auto' | (string & {})
-			}
-			td: BaseHTMLAttributes<HTMLTableCellElement> & {
-				colSpan?: number
-				rowSpan?: number
-				headers?: string
-			}
-
-			slot: BaseHTMLAttributes<HTMLSlotElement> & { name?: string }
-		}
 		type HTMLAttributes<tag extends keyof HTMLElementTagNameMap> = Omit<
 			IntrinsicElements[tag],
 			'children'

@@ -417,7 +417,7 @@ export const Dockview = (
 		// so `caught()` error boundaries bubble up through the dockview's tree.
 		const stopBindings = root`Dockview.bindings`((): (() => void) => {
 			const ctx = effectContext()
-			spawn = (fn) => withEffectContext(ctx, () => effect(fn))
+			spawn = (fn) => withEffectContext(ctx, () => effect`dockview:spawn`(fn))
 			const cleanups: (() => void)[] = []
 			const hasControlledLayout =
 				layoutBinding instanceof ReactiveProp
@@ -508,7 +508,7 @@ export const Dockview = (
 				})
 			)
 			cleanups.push(
-				effect(function maintainHeaderActions() {
+				effect`dockview:header-actions`(function maintainHeaderActions() {
 					const { headerLeft, headerRight, headerPrefix } = props
 					api.updateOptions({
 						createLeftHeaderActionComponent:

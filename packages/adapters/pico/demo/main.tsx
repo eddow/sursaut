@@ -9,6 +9,7 @@ import LayoutSection from './sections/Layout'
 import NavigationSection from './sections/Navigation'
 import OptionsSection from './sections/Options'
 import OverlaysSection from './sections/Overlays'
+import PaletteSection from './sections/Palette'
 import StatusSection from './sections/Status'
 import ThemeSection from './sections/Theme'
 
@@ -36,6 +37,12 @@ const routes: DemoRoute[] = [
 		label: 'Options',
 		description: 'Select, combobox and multiselect concerns.',
 		view: () => <OptionsSection />,
+	},
+	{
+		path: '/palette',
+		label: 'Palette',
+		description: 'Registry-first Pico palette editors and command box.',
+		view: () => <PaletteSection />,
 	},
 	{
 		path: '/status',

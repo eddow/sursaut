@@ -1,7 +1,9 @@
 import { lift, reactive } from 'mutts'
 import {
+	hasPaletteItemTool,
 	isEditableTool,
 	isRunTool,
+	PaletteError,
 	paletteEnumValueKeywords,
 	paletteTool,
 	paletteToolFamily,
@@ -9,10 +11,13 @@ import {
 } from './palette'
 import type {
 	Palette,
+	PaletteEditableTool,
+	PaletteItem,
 	PaletteSchema,
 	PaletteTool,
 	PaletteToolEnumValue,
 	PaletteToolRun,
+	PaletteToolSpec,
 } from './types'
 
 function normalizeCommandBoxToken(value: string): string {
@@ -48,28 +53,41 @@ function matchesAllTerms(haystack: string, terms: readonly string[]): boolean {
 	return terms.every((term) => haystack.includes(term))
 }
 
+/**
+ * Search query accepted by `PaletteCommandBoxModel.search()`.
+ */
 export type PaletteCommandBoxQuery = {
 	readonly free?: string
 	readonly keywords?: readonly string[]
 	readonly categories?: readonly string[]
 }
 
-export type PaletteCommandBoxEntry = {
+/**
+ * Command entry rendered and executed by the palette command box.
+ */
+export type PaletteCommandBoxEntry<TSchema extends PaletteSchema = PaletteSchema> = {
 	readonly id: string
 	readonly label: string
 	readonly meta?: string
-	readonly icon?: string
+	readonly icon?: string | JSX.Element | (() => JSX.Element)
 	readonly keywords?: readonly string[]
 	readonly categories?: readonly string[]
 	readonly can?: boolean
+	/**
+	 * When set, HTML5 catalogue drags use this payload instead of the default `{ kind: 'spec', spec: id }`.
+	 */
+	readonly catalogDrag?: PaletteCatalogDragPayload<TSchema>
 	run(): unknown
 }
 
+/**
+ * Description of an item that can be inserted into a toolbar from the add-item flow.
+ */
 export type PaletteAddItemSource<TSchema extends PaletteSchema = PaletteSchema> = {
 	readonly id: string
 	readonly label: string
 	readonly meta: string
-	readonly icon?: string
+	readonly icon?: string | JSX.Element | (() => JSX.Element)
 	readonly keywords?: readonly string[]
 	readonly categories?: readonly string[]
 	readonly kind: 'tool' | 'item'
@@ -77,16 +95,22 @@ export type PaletteAddItemSource<TSchema extends PaletteSchema = PaletteSchema> 
 	readonly editor?: keyof TSchema['editorConfigs'] & string
 }
 
+/**
+ * Command-box entry that returns a `PaletteAddItemSource` when executed.
+ */
 export type PaletteAddItemCommandEntry<TSchema extends PaletteSchema = PaletteSchema> =
-	PaletteCommandBoxEntry & {
+	PaletteCommandBoxEntry<TSchema> & {
 		readonly source: PaletteAddItemSource<TSchema>
 	}
 
+/**
+ * Higher-level item variants derived from a tool or editor source in the add-item flow.
+ */
 export type PaletteDerivedVariant<TSchema extends PaletteSchema = PaletteSchema> = {
 	readonly id: string
 	readonly label: string
 	readonly meta: string
-	readonly icon?: string
+	readonly icon?: string | JSX.Element | (() => JSX.Element)
 	readonly keywords?: readonly string[]
 	readonly categories?: readonly string[]
 	readonly kind: 'tool' | 'item' | 'set' | 'action'
@@ -97,6 +121,25 @@ export type PaletteDerivedVariant<TSchema extends PaletteSchema = PaletteSchema>
 	readonly valueType?: 'boolean' | 'number' | 'enum'
 	readonly values?: readonly PaletteToolEnumValue[]
 }
+
+/**
+ * MIME type for HTML5 drag payloads from the palette command-box catalogue.
+ */
+export const PALETTE_CATALOG_DRAG_MIME = 'application/x-sursaut-palette-catalog' as const
+
+export type PaletteCatalogDragSpecPayload = {
+	readonly kind: 'spec'
+	readonly spec: string
+}
+
+export type PaletteCatalogDragVariantPayload<TSchema extends PaletteSchema = PaletteSchema> = {
+	readonly kind: 'variant'
+	readonly variant: PaletteDerivedVariant<TSchema>
+}
+
+export type PaletteCatalogDragPayload<TSchema extends PaletteSchema = PaletteSchema> =
+	| PaletteCatalogDragSpecPayload
+	| PaletteCatalogDragVariantPayload<TSchema>
 
 function splitCommandWords(value: string): string[] {
 	return value
@@ -156,16 +199,37 @@ function commandRunner<TSchema extends PaletteSchema>(
 	return runner
 }
 
-function generatedCommandEntry(options: {
+function paletteEnumCatalogEditorVariant<TSchema extends PaletteSchema>(
+	_palette: Palette<TSchema>,
+	toolId: keyof TSchema['tools'] & string,
+	tool: Extract<PaletteEditableTool<TSchema['tools']>, { type: 'enum' }>
+): PaletteDerivedVariant<TSchema> {
+	const toolLabel = tool.label ?? humanizeCommandText(toolId)
+	return {
+		id: `tool:${toolId}:set`,
+		kind: 'set',
+		toolId,
+		label: `${toolLabel} (editor)`,
+		meta: 'Control — choose mode in inspector',
+		icon: tool.icon,
+		keywords: collectCommandKeywords(toolId, toolLabel, tool.keywords, 'set', 'value'),
+		categories: commandEntryCategories(tool, ['derived']),
+		valueType: 'enum',
+		values: tool.values,
+	}
+}
+
+function generatedCommandEntry<TSchema extends PaletteSchema = PaletteSchema>(options: {
 	id: string
 	label: string
 	meta: string
-	icon?: string
+	icon?: string | JSX.Element | (() => JSX.Element)
 	keywords?: readonly string[]
 	categories?: readonly string[]
 	can?: () => boolean
+	catalogDrag?: PaletteCatalogDragPayload<TSchema>
 	run(): unknown
-}): PaletteCommandBoxEntry {
+}): PaletteCommandBoxEntry<TSchema> {
 	return {
 		id: options.id,
 		label: options.label,
@@ -173,6 +237,7 @@ function generatedCommandEntry(options: {
 		icon: options.icon,
 		keywords: options.keywords,
 		categories: options.categories,
+		...(options.catalogDrag !== undefined ? { catalogDrag: options.catalogDrag } : {}),
 		get can() {
 			return options.can ? options.can() : true
 		},
@@ -203,6 +268,9 @@ function generatedAddItemEntry<TSchema extends PaletteSchema>(options: {
 	}
 }
 
+/**
+ * Build the add-item entries used when creating new toolbar items.
+ */
 export function paletteAddItemEntries<TSchema extends PaletteSchema>(options: {
 	palette: Palette<TSchema>
 	excludeTools?: readonly string[]
@@ -211,6 +279,10 @@ export function paletteAddItemEntries<TSchema extends PaletteSchema>(options: {
 	const entries: PaletteAddItemCommandEntry<TSchema>[] = []
 	for (const [toolId, tool] of Object.entries(options.palette.tools)) {
 		if (excluded.has(toolId)) continue
+		// Runnable commands are listed in `paletteCommandEntries` (drag spec by id); add-item sources are only for editable tools.
+		if (isRunTool(tool)) continue
+		if (isEditableTool(tool) && tool.type === 'enum' && tool.commandBoxEnumCommands !== 'per-value')
+			continue
 		const toolLabel = tool.label ?? humanizeCommandText(toolId)
 		entries.push(
 			generatedAddItemEntry({
@@ -219,7 +291,7 @@ export function paletteAddItemEntries<TSchema extends PaletteSchema>(options: {
 					kind: 'tool',
 					toolId: toolId as keyof TSchema['tools'] & string,
 					label: toolLabel,
-					meta: isRunTool(tool) ? 'Add runnable item' : `Add ${tool.type} tool`,
+					meta: `Add ${tool.type} tool`,
 					icon: tool.icon,
 					keywords: collectCommandKeywords(toolId, toolLabel, tool.keywords, 'add', 'tool'),
 					categories: commandEntryCategories(tool, ['tools']),
@@ -245,6 +317,9 @@ export function paletteAddItemEntries<TSchema extends PaletteSchema>(options: {
 	return entries.toSorted((left, right) => left.label.localeCompare(right.label))
 }
 
+/**
+ * Expand an add-item source into the concrete variants a user can insert.
+ */
 export function paletteDerivedVariants<TSchema extends PaletteSchema>(options: {
 	palette: Palette<TSchema>
 	entry: PaletteAddItemCommandEntry<TSchema> | PaletteAddItemSource<TSchema>
@@ -268,27 +343,31 @@ export function paletteDerivedVariants<TSchema extends PaletteSchema>(options: {
 	const tool = options.palette.tools[source.toolId]
 	if (!tool) return []
 	const toolLabel = tool.label ?? humanizeCommandText(source.toolId)
-	const variants: PaletteDerivedVariant<TSchema>[] = [
-		{
-			id: `${source.id}:tool`,
-			kind: 'tool',
-			toolId: source.toolId,
-			label: `Add ${toolLabel}`,
-			meta: isRunTool(tool) ? 'Toolbar action item' : 'Editable tool item',
-			icon: tool.icon,
-			keywords: collectCommandKeywords(source.toolId, toolLabel, tool.keywords),
-			categories: commandEntryCategories(tool, ['tool']),
-		},
-	]
-	if (!isEditableTool(tool)) return variants
+	// Add-item sources omit runnable tools (`paletteAddItemEntries`); this branch remains for callers passing a synthetic `tool` source.
+	if (isRunTool(tool)) {
+		return [
+			{
+				id: `${source.id}:tool`,
+				kind: 'tool',
+				toolId: source.toolId,
+				label: toolLabel,
+				meta: 'Toolbar command',
+				icon: tool.icon,
+				keywords: collectCommandKeywords(source.toolId, toolLabel, tool.keywords),
+				categories: commandEntryCategories(tool, ['tool']),
+			},
+		]
+	}
+	if (!isEditableTool(tool)) return []
 	const editableTool = tool
+	const variants: PaletteDerivedVariant<TSchema>[] = []
 	if (editableTool.type === 'boolean') {
 		variants.push({
 			id: `${source.id}:set`,
 			kind: 'set',
 			toolId: source.toolId,
-			label: `Set ${toolLabel}`,
-			meta: 'Choose on/off value',
+			label: `${toolLabel} (editor)`,
+			meta: 'Control — configure on/off in inspector',
 			icon: editableTool.icon,
 			keywords: collectCommandKeywords(
 				source.toolId,
@@ -307,8 +386,8 @@ export function paletteDerivedVariants<TSchema extends PaletteSchema>(options: {
 			id: `${source.id}:set`,
 			kind: 'set',
 			toolId: source.toolId,
-			label: `Set ${toolLabel}`,
-			meta: 'Choose enum value',
+			label: `${toolLabel} (editor)`,
+			meta: 'Control — choose mode in inspector',
 			icon: editableTool.icon,
 			keywords: collectCommandKeywords(
 				source.toolId,
@@ -328,8 +407,8 @@ export function paletteDerivedVariants<TSchema extends PaletteSchema>(options: {
 			id: `${source.id}:set`,
 			kind: 'set',
 			toolId: source.toolId,
-			label: `Set ${toolLabel}`,
-			meta: 'Enter numeric value',
+			label: `${toolLabel} (editor)`,
+			meta: 'Control — numeric field in inspector',
 			icon: editableTool.icon,
 			keywords: collectCommandKeywords(
 				source.toolId,
@@ -341,29 +420,14 @@ export function paletteDerivedVariants<TSchema extends PaletteSchema>(options: {
 			categories: commandEntryCategories(editableTool, ['derived']),
 			valueType: 'number',
 		})
-		for (const action of Object.keys(valueActions.number)) {
-			variants.push({
-				id: `${source.id}:action:${action}`,
-				kind: 'action',
-				toolId: source.toolId,
-				action,
-				spec: `${source.toolId}:${action}`,
-				label:
-					action === 'inc'
-						? `Increase ${toolLabel}`
-						: action === 'dec'
-							? `Decrease ${toolLabel}`
-							: `${humanizeCommandText(action)} ${toolLabel}`,
-				meta: 'Derived value action',
-				icon: editableTool.icon,
-				keywords: collectCommandKeywords(source.toolId, toolLabel, editableTool.keywords, action),
-				categories: commandEntryCategories(editableTool, ['derived']),
-			})
-		}
+		// `paletteCommandEntries` already exposes `toolId:inc` / `toolId:dec` for catalogue drag; do not duplicate here.
 	}
 	return variants
 }
 
+/**
+ * Filter enum values using keyword matches derived from `paletteEnumValueKeywords()`.
+ */
 export function paletteEnumSubsetValues<TValue extends string>(options: {
 	values: readonly PaletteToolEnumValue<TValue>[]
 	keywords?: readonly string[]
@@ -381,12 +445,19 @@ export function paletteEnumSubsetValues<TValue extends string>(options: {
 	})
 }
 
+/**
+ * Build the executable command entries for a palette instance.
+ *
+ * In `catalog` mode, entries stay enabled for search and catalogue drag; `run()` behaviour is unchanged.
+ */
 export function paletteCommandEntries<TSchema extends PaletteSchema>(options: {
 	palette: Palette<TSchema>
 	excludeTools?: readonly string[]
-}): readonly PaletteCommandBoxEntry[] {
+	mode?: 'run' | 'catalog'
+}): readonly PaletteCommandBoxEntry<TSchema>[] {
+	const catalog = options.mode === 'catalog'
 	const excluded = new Set(options.excludeTools ?? [])
-	const entries: PaletteCommandBoxEntry[] = []
+	const entries: PaletteCommandBoxEntry<TSchema>[] = []
 	for (const [toolId, tool] of Object.entries(options.palette.tools)) {
 		if (excluded.has(toolId)) continue
 		const toolLabel = tool.label ?? humanizeCommandText(toolId)
@@ -400,7 +471,7 @@ export function paletteCommandEntries<TSchema extends PaletteSchema>(options: {
 					icon: tool.icon,
 					keywords: collectCommandKeywords(toolId, toolLabel, tool.keywords),
 					categories: commandEntryCategories(tool),
-					can: () => tool.can,
+					can: catalog ? undefined : () => tool.can,
 					run() {
 						return commandRunner(options.palette, spec).run()
 					},
@@ -414,15 +485,18 @@ export function paletteCommandEntries<TSchema extends PaletteSchema>(options: {
 				[false, 'Disable', ['disable', 'off', 'false']],
 			] as const) {
 				const spec = `${toolId}|${value}`
+				const presetLabel = value ? 'On' : 'Off'
 				entries.push(
 					generatedCommandEntry({
 						id: spec,
-						label: `${verb} ${toolLabel}`,
-						meta: commandEntryMeta(options.palette, spec, `Set ${toolLabel}`),
+						label: catalog ? `${toolLabel} → ${presetLabel} (preset)` : `${verb} ${toolLabel}`,
+						meta: catalog
+							? 'Preset — fixed on/off on toolbar'
+							: commandEntryMeta(options.palette, spec, `Set ${toolLabel}`),
 						icon: tool.icon,
 						keywords: collectCommandKeywords(toolId, toolLabel, tool.keywords, keywords),
 						categories: commandEntryCategories(tool),
-						can: () => tool.value !== value,
+						can: catalog ? undefined : () => tool.value !== value,
 						run() {
 							return commandRunner(options.palette, spec).run()
 						},
@@ -432,14 +506,51 @@ export function paletteCommandEntries<TSchema extends PaletteSchema>(options: {
 			continue
 		}
 		if (tool.type === 'enum') {
+			if (catalog && tool.commandBoxEnumCommands !== 'per-value') {
+				const variant = paletteEnumCatalogEditorVariant(
+					options.palette,
+					toolId as keyof TSchema['tools'] & string,
+					tool as Extract<PaletteEditableTool<TSchema['tools']>, { type: 'enum' }>
+				)
+				const catalogDrag: PaletteCatalogDragVariantPayload<TSchema> = {
+					kind: 'variant',
+					variant,
+				}
+				entries.push(
+					generatedCommandEntry({
+						id: `${toolId}:catalog-enum`,
+						label: toolLabel,
+						meta: 'Control — add to toolbar; value is chosen on the bar or in the inspector',
+						icon: tool.icon,
+						keywords: collectCommandKeywords(
+							toolId,
+							toolLabel,
+							tool.keywords,
+							'set',
+							'value',
+							'choose'
+						),
+						categories: commandEntryCategories(tool),
+						catalogDrag,
+						run() {
+							return variant
+						},
+					})
+				)
+				continue
+			}
 			for (const value of tool.values) {
 				const valueLabel = value.label ?? humanizeCommandText(value.value)
 				const spec = `${toolId}|${value.value}`
 				entries.push(
 					generatedCommandEntry({
 						id: spec,
-						label: `Set ${toolLabel} to ${valueLabel}`,
-						meta: commandEntryMeta(options.palette, spec, toolLabel),
+						label: catalog
+							? `${toolLabel} → ${valueLabel} (preset)`
+							: `Set ${toolLabel} to ${valueLabel}`,
+						meta: catalog
+							? 'Preset — fixed value on toolbar'
+							: commandEntryMeta(options.palette, spec, toolLabel),
 						icon: value.icon ?? tool.icon,
 						keywords: collectCommandKeywords(
 							toolId,
@@ -450,7 +561,7 @@ export function paletteCommandEntries<TSchema extends PaletteSchema>(options: {
 							value.keywords
 						),
 						categories: commandEntryCategories(tool, value.categories),
-						can: () => value.can !== false && tool.value !== value.value,
+						can: catalog ? undefined : () => value.can !== false && tool.value !== value.value,
 						run() {
 							return commandRunner(options.palette, spec).run()
 						},
@@ -483,7 +594,7 @@ export function paletteCommandEntries<TSchema extends PaletteSchema>(options: {
 						icon: tool.icon,
 						keywords: collectCommandKeywords(toolId, toolLabel, tool.keywords, actionKeywords),
 						categories: commandEntryCategories(tool),
-						can: () => run(tool).can,
+						can: catalog ? undefined : () => run(tool).can,
 						run() {
 							return commandRunner(options.palette, spec).run()
 						},
@@ -495,15 +606,215 @@ export function paletteCommandEntries<TSchema extends PaletteSchema>(options: {
 	return entries
 }
 
+/**
+ * Full edit-mode catalogue: runnable commands (all values enabled) plus flattened add-item variants.
+ */
+export function paletteCatalogEntries<TSchema extends PaletteSchema>(options: {
+	palette: Palette<TSchema>
+	excludeTools?: readonly string[]
+}): readonly PaletteCommandBoxEntry<TSchema>[] {
+	const command = paletteCommandEntries({ ...options, mode: 'catalog' })
+	const addSources = paletteAddItemEntries(options)
+	const addEntries: PaletteCommandBoxEntry<TSchema>[] = []
+	for (const entry of addSources) {
+		for (const variant of paletteDerivedVariants({ palette: options.palette, entry })) {
+			const catalogEntry: PaletteCommandBoxEntry<TSchema> = {
+				id: `add:${variant.id}`,
+				label: variant.label,
+				meta: variant.meta,
+				icon: variant.icon,
+				keywords: variant.keywords,
+				categories: [...(variant.categories ?? []), 'add'],
+				catalogDrag: { kind: 'variant', variant: variant as PaletteDerivedVariant },
+				run() {
+					return variant
+				},
+			}
+			addEntries.push(catalogEntry)
+		}
+	}
+	return [...command, ...addEntries].toSorted((left, right) =>
+		left.label.localeCompare(right.label)
+	)
+}
+
+function paletteDefaultEditorVariantForToolSpec<TSchema extends PaletteSchema>(
+	palette: Palette<TSchema>,
+	spec: string
+): keyof TSchema['editorConfigs'] & string {
+	const probe = { tool: spec } as PaletteItem<TSchema>
+	if (!hasPaletteItemTool(probe)) throw new PaletteError(`Invalid tool spec "${spec}"`)
+	const tool = palette.tool(spec)
+	const family = paletteToolFamily(tool)
+	const defaults = palette.editorDefaults?.[family]
+	if (defaults) return defaults as keyof TSchema['editorConfigs'] & string
+	const registry = palette.editors?.[family]
+	if (!registry) throw new PaletteError(`No editor registry for tool family of spec "${spec}"`)
+	const first = Object.keys(registry)[0]
+	if (!first) throw new PaletteError(`Empty editor registry for spec "${spec}"`)
+	return first as keyof TSchema['editorConfigs'] & string
+}
+
+function paletteToolbarItemFromSpec<TSchema extends PaletteSchema>(
+	palette: Palette<TSchema>,
+	spec: string
+): PaletteItem<TSchema> {
+	const editor = paletteDefaultEditorVariantForToolSpec(palette, spec)
+	const toolResolved = palette.tool(spec)
+	const baseId = spec.split(/[|]/)[0]?.split(':')[0] ?? spec
+	const label =
+		'label' in toolResolved && typeof toolResolved.label === 'string'
+			? toolResolved.label
+			: humanizeCommandText(baseId)
+	const icon =
+		'icon' in toolResolved && typeof toolResolved.icon === 'string' ? toolResolved.icon : undefined
+	return {
+		tool: spec as PaletteToolSpec<keyof TSchema['tools'] & string>,
+		editor,
+		config: { icon, label, hint: commandEntryMeta(palette, spec, label) },
+	} as PaletteItem<TSchema>
+}
+
+function paletteToolbarItemFromDerivedVariant<TSchema extends PaletteSchema>(
+	palette: Palette<TSchema>,
+	variant: PaletteDerivedVariant<TSchema>
+): PaletteItem<TSchema> | undefined {
+	if (variant.kind === 'item') {
+		if (!variant.editor) return undefined
+		return {
+			editor: variant.editor,
+			config: { icon: variant.icon ?? '⌘', label: variant.label, hint: variant.meta },
+		} as PaletteItem<TSchema>
+	}
+	if (!variant.toolId) return undefined
+	const toolId = variant.toolId
+	const tool = palette.tools[toolId]
+	if (!tool) return undefined
+	if (variant.kind === 'tool') {
+		const spec = toolId
+		const editor = paletteDefaultEditorVariantForToolSpec(palette, spec)
+		const toolLabel =
+			'label' in tool && typeof tool.label === 'string' ? tool.label : humanizeCommandText(toolId)
+		const toolIcon = 'icon' in tool && typeof tool.icon === 'string' ? tool.icon : undefined
+		return {
+			tool: spec as PaletteToolSpec<keyof TSchema['tools'] & string>,
+			editor,
+			config: { icon: toolIcon, label: toolLabel, hint: variant.meta },
+		} as PaletteItem<TSchema>
+	}
+	if (variant.kind === 'action') {
+		if (!variant.action) return undefined
+		const spec = `${toolId}:${variant.action}` as PaletteToolSpec<keyof TSchema['tools'] & string>
+		const editor = paletteDefaultEditorVariantForToolSpec(palette, spec)
+		const toolIcon = 'icon' in tool && typeof tool.icon === 'string' ? tool.icon : undefined
+		return {
+			tool: spec,
+			editor,
+			config: { icon: variant.icon ?? toolIcon, label: variant.label, hint: variant.meta },
+		} as PaletteItem<TSchema>
+	}
+	if (variant.kind !== 'set') return undefined
+	if (!isEditableTool(tool)) return undefined
+	if (variant.valueType === 'boolean' && tool.type === 'boolean') {
+		const spec = toolId as PaletteToolSpec<keyof TSchema['tools'] & string>
+		const editor = paletteDefaultEditorVariantForToolSpec(palette, spec)
+		const toolIcon = typeof tool.icon === 'string' ? tool.icon : undefined
+		const toolLabel = typeof tool.label === 'string' ? tool.label : humanizeCommandText(toolId)
+		return {
+			tool: spec,
+			editor,
+			config: { icon: toolIcon, label: toolLabel, hint: variant.meta },
+		} as PaletteItem<TSchema>
+	}
+	if (variant.valueType === 'enum' && tool.type === 'enum') {
+		const spec = toolId as PaletteToolSpec<keyof TSchema['tools'] & string>
+		const editor = paletteDefaultEditorVariantForToolSpec(palette, spec)
+		const toolIcon = typeof tool.icon === 'string' ? tool.icon : undefined
+		const toolLabel = typeof tool.label === 'string' ? tool.label : humanizeCommandText(toolId)
+		return {
+			tool: spec,
+			editor,
+			config: { icon: toolIcon, label: toolLabel, hint: variant.meta },
+		} as PaletteItem<TSchema>
+	}
+	if (variant.valueType === 'number' && tool.type === 'number') {
+		const spec = toolId as PaletteToolSpec<keyof TSchema['tools'] & string>
+		const editor = paletteDefaultEditorVariantForToolSpec(palette, spec)
+		const toolIcon = typeof tool.icon === 'string' ? tool.icon : undefined
+		const toolLabel = typeof tool.label === 'string' ? tool.label : humanizeCommandText(toolId)
+		return {
+			tool: spec,
+			editor,
+			config: { icon: toolIcon, label: toolLabel, hint: variant.meta },
+		} as PaletteItem<TSchema>
+	}
+	return undefined
+}
+
+export function serializePaletteCatalogDragPayload(payload: PaletteCatalogDragPayload): string {
+	return JSON.stringify(payload)
+}
+
+export function parsePaletteCatalogDragPayload(raw: string): PaletteCatalogDragPayload | undefined {
+	let parsed: unknown
+	try {
+		parsed = JSON.parse(raw) as unknown
+	} catch {
+		return undefined
+	}
+	if (!parsed || typeof parsed !== 'object') return undefined
+	const record = parsed as Record<string, unknown>
+	if (record.kind === 'spec' && typeof record.spec === 'string')
+		return { kind: 'spec', spec: record.spec }
+	if (record.kind === 'variant' && record.variant && typeof record.variant === 'object') {
+		const variant = record.variant as Record<string, unknown>
+		if (
+			typeof variant.id !== 'string' ||
+			typeof variant.label !== 'string' ||
+			typeof variant.meta !== 'string' ||
+			typeof variant.kind !== 'string'
+		)
+			return undefined
+		return {
+			kind: 'variant',
+			variant: variant as unknown as PaletteDerivedVariant,
+		}
+	}
+	return undefined
+}
+
+export function paletteToolbarItemFromCatalogPayload<TSchema extends PaletteSchema>(
+	palette: Palette<TSchema>,
+	payload: PaletteCatalogDragPayload
+): PaletteItem<TSchema> | undefined {
+	if (payload.kind === 'spec') {
+		try {
+			return paletteToolbarItemFromSpec(palette, payload.spec)
+		} catch {
+			return undefined
+		}
+	}
+	return paletteToolbarItemFromDerivedVariant(
+		palette,
+		payload.variant as PaletteDerivedVariant<TSchema>
+	)
+}
+
 type PaletteCommandKeywordToken = {
 	readonly keyword: string
 }
 
+/**
+ * Keyword suggestion presented while typing in the palette command box.
+ */
 export interface PaletteCommandBoxKeywordSuggestion {
 	readonly keyword: string
 	readonly isActive: boolean
 }
 
+/**
+ * Headless state and actions for the palette command box.
+ */
 export interface PaletteCommandBoxModel {
 	readonly input: {
 		value: string
@@ -548,12 +859,18 @@ export interface PaletteCommandBoxModel {
 	handleKeyDown(event: KeyboardEvent): boolean
 }
 
+/**
+ * Sync an input event into a command-box model.
+ */
 export function setPaletteCommandBoxInput(commandBox: PaletteCommandBoxModel, event: Event) {
 	if (event.currentTarget instanceof HTMLInputElement) {
 		commandBox.input.value = event.currentTarget.value
 	}
 }
 
+/**
+ * Keyboard helper for removable category and keyword chips.
+ */
 export function handlePaletteCommandChipKeydown(options: {
 	commandBox: PaletteCommandBoxModel
 	event: KeyboardEvent
@@ -568,6 +885,9 @@ export function handlePaletteCommandChipKeydown(options: {
 	return true
 }
 
+/**
+ * Keyboard helper for the command-box input field.
+ */
 export function handlePaletteCommandBoxInputKeydown(options: {
 	commandBox: PaletteCommandBoxModel
 	event: KeyboardEvent
@@ -579,11 +899,18 @@ export function handlePaletteCommandBoxInputKeydown(options: {
 	return handled
 }
 
+/**
+ * Create a headless command-box model for a palette command list.
+ */
 export function paletteCommandBoxModel(options: {
-	entries: readonly PaletteCommandBoxEntry[]
+	entries: readonly PaletteCommandBoxEntry[] | (() => readonly PaletteCommandBoxEntry[])
 	placeholder?: string
-	enterAction?: 'execute' | 'select'
+	enterAction?: 'execute' | 'select' | (() => 'execute' | 'select')
 }): PaletteCommandBoxModel {
+	function readEntries(): readonly PaletteCommandBoxEntry[] {
+		return typeof options.entries === 'function' ? options.entries() : options.entries
+	}
+
 	const inputState = reactive({ value: '' })
 	const categoryState = reactive({ manual: [] as string[] })
 	const keywordState = reactive({ tokens: [] as PaletteCommandKeywordToken[] })
@@ -595,15 +922,14 @@ export function paletteCommandBoxModel(options: {
 		categories: [] as string[],
 	})
 	const inputPlaceholder = options.placeholder
-	const enterAction = options.enterAction ?? 'execute'
 
 	const availableCategories = lift`paletteCommandBoxModel.availableCategories`(() => {
-		const values = options.entries.flatMap((entry) => entry.categories ?? [])
+		const values = readEntries().flatMap((entry) => entry.categories ?? [])
 		return uniqueNormalized(values).sort((left, right) => left.localeCompare(right))
 	})
 
 	const availableKeywords = lift`paletteCommandBoxModel.availableKeywords`(() => {
-		const values = options.entries.flatMap((entry) => entry.keywords ?? [])
+		const values = readEntries().flatMap((entry) => entry.keywords ?? [])
 		return uniqueNormalized(values).sort((left, right) => left.localeCompare(right))
 	})
 
@@ -702,7 +1028,7 @@ export function paletteCommandBoxModel(options: {
 		const freeTerms = tokenizeQuery(query.free).map((term) => normalizeCommandBoxToken(term))
 		const categoryTerms = query.categories.map((term) => normalizeCommandBoxToken(term))
 		const keywordTerms = query.keywords.map((term) => normalizeCommandBoxToken(term))
-		return options.entries
+		return readEntries()
 			.filter((entry) => {
 				if (entry.can === false) return false
 				const data = entrySearchData(entry)
@@ -915,7 +1241,7 @@ export function paletteCommandBoxModel(options: {
 		},
 		execute(entryId?: string) {
 			const entry = entryId
-				? options.entries.find((candidate) => candidate.id === entryId)
+				? readEntries().find((candidate) => candidate.id === entryId)
 				: selection.item
 			if (!entry || entry.can === false) return undefined
 			const result = entry.run()
@@ -957,7 +1283,11 @@ export function paletteCommandBoxModel(options: {
 				const entry = selection.item ?? model.results[0]
 				if (!entry || entry.can === false) return false
 				event.preventDefault()
-				if (enterAction === 'select') model.select(entry.id)
+				const resolvedEnter =
+					typeof options.enterAction === 'function'
+						? options.enterAction()
+						: (options.enterAction ?? 'execute')
+				if (resolvedEnter === 'select') model.select(entry.id)
 				else model.execute(entry.id)
 				return true
 			}

@@ -6,6 +6,8 @@ export {
 	type LocalDragAxis,
 	type LocalDragCapturePolicy,
 	type LocalDragPoint,
+	type LocalDragPreview,
+	type LocalDragPreviewBehavior,
 	type LocalDragSession,
 	type LocalDragSessionOptions,
 	type LocalDragSnapshot,

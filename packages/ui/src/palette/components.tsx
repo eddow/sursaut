@@ -10,9 +10,15 @@ import {
 } from '../directives'
 import type { ArrangedOrientation } from '../shared/types'
 import { arranged } from '../shared/utils'
+import {
+	PALETTE_CATALOG_DRAG_MIME,
+	paletteToolbarItemFromCatalogPayload,
+	parsePaletteCatalogDragPayload,
+} from './command-box'
 import { hasPaletteItemTool, isEditableTool, isRunTool, PaletteError, palettes } from './palette'
 import type {
 	Palette,
+	PaletteBase,
 	PaletteBorder,
 	PaletteDragging,
 	PaletteItem,
@@ -28,6 +34,7 @@ type PaletteTrackSpace = {
 	border: PaletteBorder
 	direction: ArrangedOrientation
 	index: number
+	palette: Palette
 	region: PaletteRegion
 	track: PaletteTrack
 	trackIndex: number
@@ -58,12 +65,14 @@ type PaletteStackSpace = {
 	border: PaletteBorder
 	direction: ArrangedOrientation
 	index: number
+	palette: Palette
 	region: PaletteRegion
 }
 
 type PaletteToolbarSpace = {
 	direction: ArrangedOrientation
 	index: number
+	palette: Palette
 	toolbar: PaletteToolbar
 }
 
@@ -331,6 +340,159 @@ function hasPaletteDragMoved(dragging: PaletteDragging, origin: PaletteDragOrigi
 	)
 }
 
+/**
+ * Shared hit-testing, proximity chrome, toolbar preview, and track/stack moves for palette toolbar drags.
+ * Used by pointer sessions and HTML5 catalogue insert so behaviour stays aligned.
+ */
+function paletteToolbarDragApplyMove(
+	point: { x: number; y: number },
+	ctx: {
+		paletteToolbarDrag: PaletteToolbarDrag
+		anchor: number
+		originRect: DOMRectReadOnly | undefined
+		dragStart: { x: number; y: number }
+		fallbackDirection: ArrangedOrientation
+	},
+	state: {
+		proximityTargets: PaletteDragTarget[]
+		activeTarget: PaletteDragTarget | undefined
+	}
+): PaletteDragTarget | undefined {
+	if (!palettes.dragging) return state.activeTarget
+	let dragging = palettes.dragging
+	const target = ctx.paletteToolbarDrag
+	const currentTrack = dragging.track
+	const currentIndex = dragging.index
+	const currentDirection = regionDirection(dragging.region)
+	if (currentIndex < 0) return state.activeTarget
+	const nextToolbarTarget = resolveToolbarSpaceTarget(point)
+	const toolbarTarget =
+		nextToolbarTarget && !isIgnoredToolbarSpace(nextToolbarTarget, dragging)
+			? nextToolbarTarget
+			: undefined
+	const nextTrackTarget = resolveTrackSpaceTarget(point)
+	const trackTarget =
+		nextTrackTarget && !isIgnoredDropZone(nextTrackTarget, dragging) ? nextTrackTarget : undefined
+	const nextStackTarget = resolveStackSpaceTarget(point)
+	const stackTarget =
+		nextStackTarget &&
+		!(
+			ctx.originRect &&
+			isIgnoredStackSpace(nextStackTarget, point, {
+				border: dragging.sourceBorder,
+				sourceRegion: dragging.sourceRegion,
+				sourceTrackWasSingleton: dragging.sourceTrackWasSingleton,
+				start: ctx.dragStart,
+				region: dragging.sourceRegion,
+				trackIndex: dragging.sourceTrackIndex,
+			})
+		)
+			? nextStackTarget
+			: undefined
+	const resolvedTarget = toolbarTarget?.contained
+		? toolbarTarget
+		: !trackTarget
+			? stackTarget
+			: !stackTarget
+				? trackTarget
+				: stackTarget.contained
+					? stackTarget
+					: trackTarget.contained
+						? trackTarget
+						: trackTarget
+	for (const proximityTarget of state.proximityTargets) {
+		if (proximityTarget.element === resolvedTarget?.element) continue
+		if (proximityTarget.element === toolbarTarget?.element) continue
+		if (proximityTarget.element === trackTarget?.element) continue
+		if (proximityTarget.element === stackTarget?.element) continue
+		setTargetState(proximityTarget, {})
+	}
+	state.proximityTargets = [toolbarTarget, trackTarget, stackTarget].filter(
+		(candidate): candidate is PaletteDragTarget => Boolean(candidate)
+	)
+	let activeTarget = state.activeTarget
+	if (activeTarget?.element !== resolvedTarget?.element) {
+		setTargetState(activeTarget, {})
+		activeTarget = resolvedTarget
+	}
+	state.activeTarget = activeTarget
+	for (const proximityTarget of state.proximityTargets) {
+		setTargetState(proximityTarget, {
+			active: proximityTarget.element === resolvedTarget?.element && proximityTarget.contained,
+			proximity: true,
+		})
+	}
+	if (resolvedTarget?.kind === 'toolbar-space') {
+		previewToolbarItems(dragging, resolvedTarget.toolbar, resolvedTarget.index)
+		return state.activeTarget
+	}
+	const competingTarget = resolvedTarget?.contained ? resolvedTarget : undefined
+	if (dragging.toolbarPreview && competingTarget) clearToolbarPreview(dragging)
+	dragging = palettes.dragging
+	if (!dragging) return state.activeTarget
+	if (dragging.toolbarPreview && !competingTarget) return state.activeTarget
+	if (!resolvedTarget?.contained) {
+		resizeDraggedToolbarFromPointer(
+			dragging,
+			currentDirection,
+			point,
+			ctx.anchor,
+			ctx.originRect,
+			ctx.fallbackDirection
+		)
+		return state.activeTarget
+	}
+	if (
+		resolvedTarget.kind === 'track-space' &&
+		resolvedTarget.track === currentTrack &&
+		(resolvedTarget.index === currentIndex || resolvedTarget.index === currentIndex + 1)
+	) {
+		resizeDraggedToolbarFromPointer(
+			dragging,
+			resolvedTarget.direction,
+			point,
+			ctx.anchor,
+			ctx.originRect,
+			ctx.fallbackDirection
+		)
+		return state.activeTarget
+	}
+	const nextDragging =
+		resolvedTarget.kind === 'track-space'
+			? moveToolbarToTrack(dragging, target, resolvedTarget)
+			: moveToolbarToStack(dragging, target, resolvedTarget)
+	if (!nextDragging) return state.activeTarget
+	const catalogCarry = dragging.catalogInsert
+		? ({
+				catalogInsert: true as const,
+				catalogInsertPointer: dragging.catalogInsertPointer,
+				catalogInsertSeedBorder: dragging.catalogInsertSeedBorder,
+			} satisfies Pick<
+				PaletteDragging,
+				'catalogInsert' | 'catalogInsertPointer' | 'catalogInsertSeedBorder'
+			>)
+		: undefined
+	const merged = catalogCarry
+		? ({ ...nextDragging, ...catalogCarry } as unknown as PaletteDragging)
+		: nextDragging
+	palettes.dragging = merged
+	dragging = merged
+	if (
+		resolvedTarget.kind === 'track-space' &&
+		(resolvedTarget.direction === currentDirection || draggingToolbarRect(merged))
+	) {
+		resizeDraggedToolbarFromPointer(
+			merged,
+			resolvedTarget.direction,
+			point,
+			ctx.anchor,
+			ctx.originRect,
+			ctx.fallbackDirection
+		)
+	}
+	return state.activeTarget
+}
+
 function startPaletteToolbarDragSession(
 	element: HTMLElement,
 	target: PaletteToolbarDrag,
@@ -344,137 +506,17 @@ function startPaletteToolbarDragSession(
 ): void {
 	let originRect: DOMRectReadOnly | undefined
 	let dragStart: { x: number; y: number } | undefined
-	let proximityTargets: PaletteDragTarget[] = []
+	const moveState: {
+		proximityTargets: PaletteDragTarget[]
+		activeTarget: PaletteDragTarget | undefined
+	} = { proximityTargets: [], activeTarget: undefined }
 	let activated = false
-	const handleMove = (
-		snapshot: { current: { x: number; y: number } },
-		activeTarget: PaletteDragTarget | undefined,
-		anchor: number,
-		fallbackRect: DOMRectReadOnly | undefined,
-		fallbackDirection: ArrangedOrientation
-	) => {
-		if (!palettes.dragging) return activeTarget
-		const dragging = palettes.dragging
-		const currentTrack = dragging.track
-		const currentIndex = dragging.index
-		const currentDirection = regionDirection(dragging.region)
-		if (currentIndex < 0) return activeTarget
-		const nextToolbarTarget = resolveToolbarSpaceTarget(snapshot.current)
-		const toolbarTarget =
-			nextToolbarTarget && !isIgnoredToolbarSpace(nextToolbarTarget, dragging)
-				? nextToolbarTarget
-				: undefined
-		const nextTrackTarget = resolveTrackSpaceTarget(snapshot.current)
-		const trackTarget =
-			nextTrackTarget && !isIgnoredDropZone(nextTrackTarget, dragging) ? nextTrackTarget : undefined
-		const nextStackTarget = resolveStackSpaceTarget(snapshot.current)
-		const stackTarget =
-			nextStackTarget &&
-			!(
-				originRect &&
-				isIgnoredStackSpace(nextStackTarget, snapshot.current, {
-					border: dragging.sourceBorder,
-					sourceRegion: dragging.sourceRegion,
-					sourceTrackWasSingleton: dragging.sourceTrackWasSingleton,
-					start: dragStart ?? snapshot.current,
-					region: dragging.sourceRegion,
-					trackIndex: dragging.sourceTrackIndex,
-				})
-			)
-				? nextStackTarget
-				: undefined
-		const resolvedTarget = toolbarTarget?.contained
-			? toolbarTarget
-			: !trackTarget
-				? stackTarget
-				: !stackTarget
-					? trackTarget
-					: stackTarget.contained
-						? stackTarget
-						: trackTarget.contained
-							? trackTarget
-							: trackTarget
-		for (const proximityTarget of proximityTargets) {
-			if (proximityTarget.element === resolvedTarget?.element) continue
-			if (proximityTarget.element === toolbarTarget?.element) continue
-			if (proximityTarget.element === trackTarget?.element) continue
-			if (proximityTarget.element === stackTarget?.element) continue
-			setTargetState(proximityTarget, {})
-		}
-		proximityTargets = [toolbarTarget, trackTarget, stackTarget].filter(
-			(candidate): candidate is PaletteDragTarget => Boolean(candidate)
-		)
-		if (activeTarget?.element !== resolvedTarget?.element) {
-			setTargetState(activeTarget, {})
-			activeTarget = resolvedTarget
-		}
-		for (const proximityTarget of proximityTargets) {
-			setTargetState(proximityTarget, {
-				active: proximityTarget.element === resolvedTarget?.element && proximityTarget.contained,
-				proximity: true,
-			})
-		}
-		if (resolvedTarget?.kind === 'toolbar-space') {
-			previewToolbarItems(dragging, resolvedTarget.toolbar, resolvedTarget.index)
-			return activeTarget
-		}
-		const competingTarget = resolvedTarget?.contained ? resolvedTarget : undefined
-		if (dragging.toolbarPreview && competingTarget) clearToolbarPreview(dragging)
-		if (dragging.toolbarPreview && !competingTarget) return activeTarget
-		if (!resolvedTarget?.contained) {
-			resizeDraggedToolbarFromPointer(
-				dragging,
-				currentDirection,
-				snapshot.current,
-				anchor,
-				fallbackRect,
-				fallbackDirection
-			)
-			return activeTarget
-		}
-		if (
-			resolvedTarget.kind === 'track-space' &&
-			resolvedTarget.track === currentTrack &&
-			(resolvedTarget.index === currentIndex || resolvedTarget.index === currentIndex + 1)
-		) {
-			resizeDraggedToolbarFromPointer(
-				dragging,
-				resolvedTarget.direction,
-				snapshot.current,
-				anchor,
-				fallbackRect,
-				fallbackDirection
-			)
-			return activeTarget
-		}
-		const nextDragging =
-			resolvedTarget.kind === 'track-space'
-				? moveToolbarToTrack(dragging, target, resolvedTarget)
-				: moveToolbarToStack(dragging, target, resolvedTarget)
-		if (!nextDragging) return activeTarget
-		palettes.dragging = nextDragging
-		if (
-			resolvedTarget.kind === 'track-space' &&
-			(resolvedTarget.direction === currentDirection || draggingToolbarRect(nextDragging))
-		) {
-			resizeDraggedToolbarFromPointer(
-				nextDragging,
-				resolvedTarget.direction,
-				snapshot.current,
-				anchor,
-				fallbackRect,
-				fallbackDirection
-			)
-		}
-		return activeTarget
-	}
 
 	event.preventDefault()
 	const rect = element.getBoundingClientRect()
 	originRect = rect
 	dragStart = { x: event.clientX, y: event.clientY }
 	const anchor = axisValue(target.direction, dragStart) - rectAxisStart(rect, target.direction)
-	let activeTarget: PaletteDragTarget | undefined
 	startLocalDragSession({
 		event,
 		axis: dragAxis(target.direction),
@@ -485,13 +527,23 @@ function startPaletteToolbarDragSession(
 				activated = true
 				palettes.dragging = dragging
 			}
-			activeTarget = handleMove(snapshot, activeTarget, anchor, originRect, target.direction)
+			paletteToolbarDragApplyMove(
+				snapshot.current,
+				{
+					paletteToolbarDrag: target,
+					anchor,
+					originRect,
+					dragStart: dragStart ?? snapshot.current,
+					fallbackDirection: target.direction,
+				},
+				moveState
+			)
 		},
 		onStop(snapshot) {
-			setTargetState(activeTarget, {})
-			for (const proximityTarget of proximityTargets) setTargetState(proximityTarget, {})
-			proximityTargets = []
-			activeTarget = undefined
+			setTargetState(moveState.activeTarget, {})
+			for (const proximityTarget of moveState.proximityTargets) setTargetState(proximityTarget, {})
+			moveState.proximityTargets = []
+			moveState.activeTarget = undefined
 			dragStart = undefined
 			if (!activated) {
 				if (snapshot.reason === 'up' || snapshot.reason === 'buttons') options?.onClick?.()
@@ -615,6 +667,181 @@ function insertToolbar(
 	spaces.splice(insertionIndex, 1, before, after)
 	track.splice(insertionIndex, 0, { space: 0, toolbar })
 	applyTrackSpaces(track, spaces)
+}
+
+function splitCatalogDropClient(
+	event: DragEvent,
+	element: HTMLElement,
+	direction: ArrangedOrientation
+): number {
+	const rect = element.getBoundingClientRect()
+	if (direction === 'horizontal') {
+		const x = event.clientX - rect.left
+		return clampUnit(rect.width > 0 ? x / rect.width : 0.5)
+	}
+	const y = event.clientY - rect.top
+	return clampUnit(rect.height > 0 ? y / rect.height : 0.5)
+}
+
+function catalogMimeAvailable(types: readonly string[]): boolean {
+	return types.includes(PALETTE_CATALOG_DRAG_MIME)
+}
+
+/**
+ * Start a catalogue-insert session: same `PaletteDragging` / `previewToolbarItems` path as pointer drag.
+ * Call from `dragstart` after the payload is resolved to a toolbar item.
+ */
+export function beginPaletteCatalogInsertDrag<TSchema extends PaletteSchema>(
+	palette: Palette<TSchema>,
+	item: PaletteItem<TSchema>,
+	pointer?: { x: number; y: number }
+): void {
+	if (palettes.dragging) return
+	const toolbar = reactive<PaletteToolbar<PaletteItem<TSchema>>>([item])
+	const track = reactive<PaletteTrack<PaletteItem<TSchema>>>([{ space: 0, toolbar }])
+	const border = reactive<PaletteBorder<PaletteItem<TSchema>>>([track])
+	const dragging = {
+		border,
+		createdTracks: [],
+		index: 0,
+		palette,
+		region: 'top' as const,
+		sourceItems: [item],
+		sourceBorder: border,
+		sourceRegion: 'top' as const,
+		sourceTrack: track,
+		sourceTrackIndex: 0,
+		sourceTrackWasSingleton: true,
+		toolbar,
+		track,
+		trackIndex: 0,
+		catalogInsert: true as const,
+		catalogInsertPointer: pointer ? { dragStart: { x: pointer.x, y: pointer.y } } : undefined,
+		catalogInsertSeedBorder: border,
+	} as unknown as PaletteDragging
+	palettes.dragging = dragging
+	palettes.catalogDrag = { palette: palette as unknown as PaletteBase }
+}
+
+/** Coalesced native catalogue-insert moves: one layout pass per animation frame. */
+let catalogNativeMoveRaf = 0
+const catalogNativePendingPoint = { x: 0, y: 0 }
+const catalogNativeMoveState: {
+	proximityTargets: PaletteDragTarget[]
+	activeTarget: PaletteDragTarget | undefined
+} = { proximityTargets: [], activeTarget: undefined }
+
+function catalogInsertPaletteToolbarDrag(dragging: PaletteDragging): PaletteToolbarDrag {
+	return {
+		border: dragging.border,
+		direction: regionDirection(dragging.region),
+		palette: dragging.palette,
+		region: dragging.region,
+		toolbar: dragging.toolbar,
+		track: dragging.track,
+		trackIndex: dragging.trackIndex,
+	}
+}
+
+function resetCatalogNativeMoveUi(): void {
+	if (catalogNativeMoveRaf) {
+		cancelAnimationFrame(catalogNativeMoveRaf)
+		catalogNativeMoveRaf = 0
+	}
+	setTargetState(catalogNativeMoveState.activeTarget, {})
+	for (const proximityTarget of catalogNativeMoveState.proximityTargets)
+		setTargetState(proximityTarget, {})
+	catalogNativeMoveState.proximityTargets = []
+	catalogNativeMoveState.activeTarget = undefined
+}
+
+function flushCatalogNativeToolbarMove(): void {
+	const dragging = palettes.dragging
+	if (!dragging?.catalogInsert) return
+	const point = catalogNativePendingPoint
+	if (!dragging.catalogInsertPointer)
+		dragging.catalogInsertPointer = { dragStart: { x: point.x, y: point.y } }
+	const ip = dragging.catalogInsertPointer
+	const rect = draggingToolbarRect(dragging)
+	const dir = regionDirection(dragging.region)
+	if (ip.grabAnchor === undefined && rect) {
+		ip.grabAnchor = axisValue(dir, ip.dragStart) - rectAxisStart(rect, dir)
+	}
+	paletteToolbarDragApplyMove(
+		point,
+		{
+			paletteToolbarDrag: catalogInsertPaletteToolbarDrag(dragging),
+			anchor: ip.grabAnchor ?? 0,
+			originRect: rect,
+			dragStart: ip.dragStart,
+			fallbackDirection: dir,
+		},
+		catalogNativeMoveState
+	)
+}
+
+function cancelPaletteCatalogInsertDrag(): void {
+	resetCatalogNativeMoveUi()
+	const dragging = palettes.dragging
+	if (!dragging?.catalogInsert) return
+	clearToolbarPreview(dragging)
+	collapseDeferredSourceTrack(dragging)
+	delete palettes.dragging
+	if (palettes.catalogDrag) delete palettes.catalogDrag
+}
+
+function bindPaletteCatalogDrop(
+	element: HTMLElement,
+	palette: Palette,
+	insert: (item: PaletteToolbarItem, event: DragEvent) => void
+): () => void {
+	const onDragOver = (event: DragEvent) => {
+		if (!palette.editing) return
+		const session = palettes.dragging
+		if (session?.catalogInsert && unwrap(session.palette) === unwrap(palette)) {
+			event.preventDefault()
+			if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+			return
+		}
+		if (!event.dataTransfer || !catalogMimeAvailable(Array.from(event.dataTransfer.types))) return
+		event.preventDefault()
+		event.dataTransfer.dropEffect = 'copy'
+	}
+	const onDrop = (event: DragEvent) => {
+		if (!palette.editing) return
+		const session = palettes.dragging
+		if (session?.catalogInsert && unwrap(session.palette) === unwrap(palette)) {
+			event.preventDefault()
+			if (session.toolbarPreview) {
+				finalizeToolbarPreview(session)
+				collapseDeferredSourceTrack(session)
+			} else {
+				const item = session.sourceItems[0]
+				const stillOnCatalogSeed =
+					session.catalogInsertSeedBorder !== undefined &&
+					session.border === session.catalogInsertSeedBorder
+				if (item && stillOnCatalogSeed) insert(item as PaletteToolbarItem, event)
+				collapseDeferredSourceTrack(session)
+			}
+			delete palettes.dragging
+			if (palettes.catalogDrag) delete palettes.catalogDrag
+			return
+		}
+		const raw = event.dataTransfer?.getData(PALETTE_CATALOG_DRAG_MIME)
+		if (!raw) return
+		event.preventDefault()
+		const payload = parsePaletteCatalogDragPayload(raw)
+		if (!payload) return
+		const item = paletteToolbarItemFromCatalogPayload(palette as Palette<PaletteSchema>, payload)
+		if (!item) return
+		insert(item as PaletteToolbarItem, event)
+	}
+	element.addEventListener('dragover', onDragOver)
+	element.addEventListener('drop', onDrop)
+	return () => {
+		element.removeEventListener('dragover', onDragOver)
+		element.removeEventListener('drop', onDrop)
+	}
 }
 
 /**
@@ -863,7 +1090,10 @@ function isIgnoredDropZone(target: PaletteTrackSpace, dragged: PaletteDragging):
 	return target.index === index || target.index === index + 1
 }
 
-function isIgnoredToolbarSpace(target: PaletteToolbarSpace, dragged: PaletteDragging): boolean {
+function isIgnoredToolbarSpace(
+	target: Pick<PaletteToolbarSpace, 'direction' | 'index' | 'toolbar'>,
+	dragged: PaletteDragging
+): boolean {
 	if (target.toolbar === dragged.toolbar) return true
 	const preview = dragged.toolbarPreview
 	if (!preview || target.toolbar !== preview.toolbar) return false
@@ -995,10 +1225,15 @@ Object.assign(rootEnv, {
 				delete palettes.inspecting
 		})
 		const stopDragging = effect`palette.root.dragging`(() => {
-			const dragging = unwrap(palettes.dragging?.palette) === unwrap(palette)
-			setPaletteRootClass(element, 'palette-dragging', dragging)
-			setPaletteRootClass(element, 'dragging', dragging)
-			setPaletteRootData(element, 'dragging', dragging)
+			const pointerDrag = unwrap(palettes.dragging?.palette) === unwrap(palette)
+			const catalogDrag = unwrap(palettes.catalogDrag?.palette) === unwrap(palette)
+			// Pointer reorder: same classes as before (toolbar opacity, proximity loop).
+			setPaletteRootClass(element, 'palette-dragging', pointerDrag)
+			setPaletteRootClass(element, 'dragging', pointerDrag)
+			setPaletteRootData(element, 'dragging', pointerDrag)
+			// Native catalogue drag: separate flag; do not reuse `data-dragging` (would break hit-testing / UX).
+			setPaletteRootClass(element, 'palette-catalog-dragging', catalogDrag)
+			setPaletteRootData(element, 'catalogDragging', catalogDrag)
 		})
 
 		const onKeyDown = (event: KeyboardEvent) => {
@@ -1022,28 +1257,55 @@ Object.assign(rootEnv, {
 			element.removeEventListener('keydown', onKeyDown)
 		}
 	},
-	paletteTrackSpace(element: HTMLElement, target: PaletteTrackSpace): (() => void) | undefined {
+	paletteTrackSpace(
+		element: HTMLElement,
+		target: PaletteTrackSpace | undefined
+	): (() => void) | undefined {
+		if (!target?.palette) return undefined
 		trackSpaces.add(element)
 		trackSpaceMeta.set(element, target)
+		const stopCatalog = bindPaletteCatalogDrop(element, target.palette, (item, event) => {
+			const split = splitCatalogDropClient(event, element, target.direction)
+			const toolbar = reactive<PaletteToolbar>([item])
+			insertToolbar(target.track, target.index, toolbar, split)
+		})
 		return () => {
+			stopCatalog()
 			delete element.dataset.active
 			delete element.dataset.proximity
 			trackSpaces.delete(element)
 		}
 	},
-	paletteStackSpace(element: HTMLElement, target: PaletteStackSpace): (() => void) | undefined {
+	paletteStackSpace(
+		element: HTMLElement,
+		target: PaletteStackSpace | undefined
+	): (() => void) | undefined {
+		if (!target?.palette) return undefined
 		stackSpaces.add(element)
 		stackSpaceMeta.set(element, target)
+		const stopCatalog = bindPaletteCatalogDrop(element, target.palette, (item) => {
+			const toolbar = reactive<PaletteToolbar>([item])
+			insertTrackWithToolbar(target.border, target.index, toolbar)
+		})
 		return () => {
+			stopCatalog()
 			delete element.dataset.active
 			delete element.dataset.proximity
 			stackSpaces.delete(element)
 		}
 	},
-	paletteToolbarSpace(element: HTMLElement, target: PaletteToolbarSpace): (() => void) | undefined {
+	paletteToolbarSpace(
+		element: HTMLElement,
+		target: PaletteToolbarSpace | undefined
+	): (() => void) | undefined {
+		if (!target?.palette) return undefined
 		toolbarSpaces.add(element)
 		toolbarSpaceMeta.set(element, target)
+		const stopCatalog = bindPaletteCatalogDrop(element, target.palette, (item) => {
+			target.toolbar.splice(target.index, 0, item)
+		})
 		return () => {
+			stopCatalog()
 			delete element.dataset.active
 			delete element.dataset.proximity
 			toolbarSpaces.delete(element)
@@ -1163,6 +1425,7 @@ export function Toolbar<TSchema extends PaletteSchema = PaletteSchema>(
 						: {
 								direction: props.direction,
 								index: 0,
+								palette,
 								toolbar: props.toolbar,
 							}
 				}
@@ -1192,7 +1455,6 @@ export function Toolbar<TSchema extends PaletteSchema = PaletteSchema>(
 										props.border !== undefined &&
 										props.region !== undefined &&
 										props.trackIndex !== undefined &&
-										props.toolbar.length > 1 &&
 										palette.editing
 									}
 									class="toolbar-item-guard"
@@ -1233,6 +1495,7 @@ export function Toolbar<TSchema extends PaletteSchema = PaletteSchema>(
 										: {
 												direction: props.direction,
 												index: index + 1,
+												palette,
 												toolbar: props.toolbar,
 											}
 								}
@@ -1267,6 +1530,7 @@ export function DropZone(
 						border: props.border,
 						direction: props.direction,
 						index: props.index,
+						palette: _scope.palette!,
 						region: props.region,
 						track: props.track,
 						trackIndex: props.trackIndex,
@@ -1284,6 +1548,7 @@ export function DropZone(
 				border: props.border,
 				direction: props.direction,
 				index: props.index,
+				palette: _scope.palette!,
 				region: props.region,
 				track: props.track,
 				trackIndex: props.trackIndex,
@@ -1312,6 +1577,7 @@ export function StackDropZone(
 				border: props.border,
 				direction: props.direction,
 				index: props.index,
+				palette: _scope.palette!,
 				region: props.region,
 			}}
 		/>
@@ -1610,4 +1876,79 @@ export function Ide<TSchema extends PaletteSchema = PaletteSchema>(
 			/>
 		</div>
 	)
+}
+
+/** Elements last highlighted during native catalogue drag (pointer path does not run). */
+const catalogNativeHighlightElements: HTMLElement[] = []
+
+function clearPaletteCatalogDropHighlights(): void {
+	for (const el of catalogNativeHighlightElements) {
+		delete el.dataset.active
+		delete el.dataset.proximity
+	}
+	catalogNativeHighlightElements.length = 0
+}
+
+function updatePaletteCatalogNativeDropHighlight(point: { x: number; y: number }): void {
+	clearPaletteCatalogDropHighlights()
+	const toolbarTarget = resolveToolbarSpaceTarget(point)
+	const trackTarget = resolveTrackSpaceTarget(point)
+	const stackTarget = resolveStackSpaceTarget(point)
+	const resolvedTarget = toolbarTarget?.contained
+		? toolbarTarget
+		: !trackTarget
+			? stackTarget
+			: !stackTarget
+				? trackTarget
+				: stackTarget.contained
+					? stackTarget
+					: trackTarget.contained
+						? trackTarget
+						: trackTarget
+	const candidates = [toolbarTarget, trackTarget, stackTarget].filter(
+		(candidate): candidate is PaletteDragTarget => Boolean(candidate)
+	)
+	for (const candidate of candidates) {
+		setTargetState(candidate, {
+			proximity: true,
+			active:
+				resolvedTarget !== undefined &&
+				candidate.element === resolvedTarget.element &&
+				Boolean(resolvedTarget.contained),
+		})
+		catalogNativeHighlightElements.push(candidate.element)
+	}
+}
+
+function onWindowPaletteCatalogDragOver(event: DragEvent): void {
+	const dragging = palettes.dragging
+	const mimeOk = event.dataTransfer && catalogMimeAvailable(Array.from(event.dataTransfer.types))
+	const activeNativeCatalog = Boolean(dragging?.catalogInsert || (palettes.catalogDrag && mimeOk))
+	if (!activeNativeCatalog) return
+	event.preventDefault()
+	if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+	const point = { x: event.clientX, y: event.clientY }
+	if (dragging?.catalogInsert) {
+		catalogNativePendingPoint.x = point.x
+		catalogNativePendingPoint.y = point.y
+		if (!catalogNativeMoveRaf) {
+			catalogNativeMoveRaf = requestAnimationFrame(() => {
+				catalogNativeMoveRaf = 0
+				flushCatalogNativeToolbarMove()
+			})
+		}
+		return
+	}
+	updatePaletteCatalogNativeDropHighlight(point)
+}
+
+function onWindowPaletteCatalogDragEnd(): void {
+	if (palettes.dragging?.catalogInsert) cancelPaletteCatalogInsertDrag()
+	else resetCatalogNativeMoveUi()
+	clearPaletteCatalogDropHighlights()
+}
+
+if (typeof window !== 'undefined') {
+	window.addEventListener('dragover', onWindowPaletteCatalogDragOver, true)
+	window.addEventListener('dragend', onWindowPaletteCatalogDragEnd, true)
 }

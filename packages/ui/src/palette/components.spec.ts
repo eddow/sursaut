@@ -2,7 +2,7 @@ import { document, h, rootEnv, SursautElement } from '@sursaut/core'
 import { unwrap } from 'mutts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import './components'
-import { Parking } from './components'
+import { beginPaletteCatalogInsertDrag, Parking } from './components'
 import { createPaletteKeys } from './keys'
 import { Palette, palettes } from './palette'
 import type { PaletteConfig } from './types'
@@ -42,9 +42,26 @@ function renderNodes(element: JSX.Element | JSX.Element[], scope: Record<string,
 	return Array.isArray(nodes) ? nodes : Array.from(nodes as Iterable<Node>)
 }
 
+describe('catalogue insert session', () => {
+	afterEach(() => {
+		palettes.catalogDrag = undefined
+		palettes.dragging = undefined
+	})
+
+	it('tags the ephemeral shell so drop-after-move skips a second insert', () => {
+		const palette = testPalette(() => {})
+		const item = { tool: 'run' as const, editor: 'button' as const, config: {} }
+		beginPaletteCatalogInsertDrag(palette, item)
+		const session = palettes.dragging
+		expect(session?.catalogInsert).toBe(true)
+		expect(session?.catalogInsertSeedBorder).toBe(session?.border)
+	})
+})
+
 describe('paletteRoot', () => {
 	afterEach(() => {
 		document.body.replaceChildren()
+		palettes.catalogDrag = undefined
 		palettes.editing = undefined
 		palettes.dragging = undefined
 		palettes.inspecting = undefined

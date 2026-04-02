@@ -7,11 +7,12 @@ describe('palette keys', () => {
 		expect(normalizePaletteKeystroke('option+ctrl+escape')).toBe('Ctrl+Alt+Esc')
 		expect(normalizePaletteKeystroke(' space ')).toBe('Space')
 		expect(normalizePaletteKeystroke('alt+meta+ctrl+k')).toBe('Ctrl+Alt+Meta+K')
+		expect(normalizePaletteKeystroke('`')).toBe('`')
 	})
 
 	it('derives normalized keystrokes from keyboard events', () => {
 		const event = new KeyboardEvent('keydown', {
-			key: 'Space',
+			key: ' ',
 			ctrlKey: true,
 			altKey: true,
 			bubbles: true,
@@ -36,6 +37,7 @@ describe('palette keys', () => {
 		expect(keys.resolve(new KeyboardEvent('keydown', { key: 'Space', bubbles: true }))).toBe(
 			'toggle'
 		)
+		expect(keys.resolve(new KeyboardEvent('keydown', { key: ' ', bubbles: true }))).toBe('toggle')
 	})
 
 	it('returns undefined when no binding matches', () => {
@@ -44,6 +46,17 @@ describe('palette keys', () => {
 		})
 
 		expect(keys.resolve(new KeyboardEvent('keydown', { key: 'x', bubbles: true }))).toBeUndefined()
+	})
+
+	it('resolves grave accent (backtick) bindings', () => {
+		const keys = createPaletteKeys({
+			'`': 'openConsole',
+		})
+
+		expect(keys.findByTool('openConsole')).toEqual(['`'])
+		expect(keys.resolve(new KeyboardEvent('keydown', { key: '`', bubbles: true }))).toBe(
+			'openConsole'
+		)
 	})
 
 	it('normalizes and resolves escape aliases consistently', () => {

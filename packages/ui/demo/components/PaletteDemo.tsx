@@ -1,4 +1,4 @@
-import { h } from '@sursaut/core'
+// TODO: fix add drag
 import { componentStyle } from '@sursaut/kit'
 import {
 	arranged,
@@ -15,6 +15,7 @@ import {
 	isEditing,
 	Palette,
 	type PaletteAddItemCommandEntry,
+	type PaletteBorder,
 	type PaletteBorders,
 	type PaletteDerivedVariant,
 	type PaletteEditorContext,
@@ -22,7 +23,9 @@ import {
 	type PaletteSchema,
 	type PaletteScope,
 	type PaletteTool,
+	type PaletteToolbar,
 	type PaletteToolbarItem,
+	type PaletteTrack,
 	Parking,
 	paletteAddItemEntries,
 	paletteCommandBoxModel,
@@ -32,8 +35,9 @@ import {
 	palettes,
 	renderPaletteConfigurator,
 	setPaletteCommandBoxInput,
+	Toolbar,
 } from '@sursaut/ui/palette'
-import { memoize, reactive, unwrap } from 'mutts'
+import { effect, memoize, reactive, unwrap } from 'mutts'
 
 type DemoLayout = 'horizontal' | 'vertical'
 type DemoMode = 'inspect' | 'command'
@@ -193,6 +197,7 @@ const toolbarCommandBoxUi = reactive({ focused: false })
 const popupCommandBoxUi = reactive({
 	open: false,
 	selectedEntryId: undefined as string | undefined,
+	selectedVariantId: undefined as string | undefined,
 	booleanValue: 'true',
 	setValue: '',
 	enumValues: '',
@@ -201,6 +206,7 @@ const popupCommandBoxUi = reactive({
 
 function resetPopupAddState() {
 	popupCommandBoxUi.selectedEntryId = undefined
+	popupCommandBoxUi.selectedVariantId = undefined
 	popupCommandBoxUi.booleanValue = 'true'
 	popupCommandBoxUi.setValue = ''
 	popupCommandBoxUi.enumValues = ''
@@ -794,9 +800,27 @@ function SplitButtonEditor({
 }: PaletteEditorContext<DemoRunTool, DemoPaletteItem, DemoPaletteSchema>) {
 	const direction = layoutFromScope(scope)
 	const actions = [
-		{ value: 'reset', label: 'Reset', onClick: () => { tool.run() } },
-		{ value: 'presentation', label: 'Present', onClick: () => { applyPresentationMode() } },
-		{ value: 'inspect', label: 'Inspect', onClick: () => { applyInspectorMode() } },
+		{
+			value: 'reset',
+			label: 'Reset',
+			onClick: () => {
+				tool.run()
+			},
+		},
+		{
+			value: 'presentation',
+			label: 'Present',
+			onClick: () => {
+				applyPresentationMode()
+			},
+		},
+		{
+			value: 'inspect',
+			label: 'Inspect',
+			onClick: () => {
+				applyInspectorMode()
+			},
+		},
 	] as const
 
 	const state = {
@@ -944,7 +968,10 @@ function SelectEditor({
 	const current = values.find((value) => value.value === tool.value)
 	const currentParts = current ? enumChoiceParts(current) : undefined
 	return (
-		<label class={['palette-demo-select', `palette-demo-tone-${meta.tone}`]} title={tooltip(item, meta.hint)}>
+		<label
+			class={['palette-demo-select', `palette-demo-tone-${meta.tone}`]}
+			title={tooltip(item, meta.hint)}
+		>
 			<span if={meta.icon || display !== 'text'} class="palette-demo-icon">
 				{meta.icon ?? currentParts?.icon ?? compactIcon(tool.value)}
 			</span>
@@ -985,7 +1012,11 @@ function SegmentedEditor({
 				{(value) => (
 					<button
 						type="button"
-						class={['palette-demo-tool', 'palette-demo-tool-compact', tool.value === value.value ? 'is-selected' : undefined]}
+						class={[
+							'palette-demo-tool',
+							'palette-demo-tool-compact',
+							tool.value === value.value ? 'is-selected' : undefined,
+						]}
 						disabled={value.can === false || tool.value === value.value}
 						onClick={() => {
 							tool.value = value.value
@@ -1024,12 +1055,26 @@ function StarsEditor({
 		orientation: direction,
 	})
 	return (
-		<div class={['palette-demo-stars', `palette-demo-tone-${meta.tone}`, `palette-demo-layout-${direction}`]} title={tooltip(item, meta.hint)}>
+		<div
+			class={[
+				'palette-demo-stars',
+				`palette-demo-tone-${meta.tone}`,
+				`palette-demo-layout-${direction}`,
+			]}
+			title={tooltip(item, meta.hint)}
+		>
 			<span class="palette-demo-icon">{meta.icon ?? '★'}</span>
-			<span class={['palette-demo-stars-row', `palette-demo-layout-${direction}`]} {...model.container}>
+			<span
+				class={['palette-demo-stars-row', `palette-demo-layout-${direction}`]}
+				{...model.container}
+			>
 				<for each={model.starItems}>
 					{(entry) => (
-						<span class={['palette-demo-arrow', entry.status === 'before' ? 'is-selected' : undefined]} {...entry.el} title={`${meta.label} ${entry.index + 1}`}>
+						<span
+							class={['palette-demo-arrow', entry.status === 'before' ? 'is-selected' : undefined]}
+							{...entry.el}
+							title={`${meta.label} ${entry.index + 1}`}
+						>
 							{entry.status === 'after' || entry.status === 'zero' ? '▷' : '▶'}
 						</span>
 					)}
@@ -1050,7 +1095,15 @@ function SliderEditor({
 	const max = tool.max ?? 100
 	const step = tool.step ?? 1
 	return (
-		<label class={['palette-demo-slider', `palette-demo-tone-${meta.tone}`, `palette-demo-layout-${direction}`, `palette-demo-region-${regionFromScope(scope)}`]} title={tooltip(item, `${meta.label} ${tool.value}`)}>
+		<label
+			class={[
+				'palette-demo-slider',
+				`palette-demo-tone-${meta.tone}`,
+				`palette-demo-layout-${direction}`,
+				`palette-demo-region-${regionFromScope(scope)}`,
+			]}
+			title={tooltip(item, `${meta.label} ${tool.value}`)}
+		>
 			<span class="palette-demo-icon">{meta.icon ?? 'A'}</span>
 			<input
 				type="range"
@@ -1074,21 +1127,38 @@ function StepperEditor({
 }: PaletteEditorContext<DemoNumberTool, DemoPaletteItem, DemoPaletteSchema>) {
 	const meta = toolbarMeta(item)
 	return (
-		<div class={['palette-demo-stepper', `palette-demo-tone-${meta.tone}`, `palette-demo-layout-${layoutFromScope(scope)}`]} title={tooltip(item, `${meta.label} ${tool.value}`)}>
-			<button type="button" class={['palette-demo-tool', 'palette-demo-tool-compact']} disabled={tool.value - (tool.step ?? 1) < (tool.min ?? Number.NEGATIVE_INFINITY)} onClick={() => {
-				tool.value = Math.max(tool.min ?? Number.NEGATIVE_INFINITY, tool.value - (tool.step ?? 1))
-				setLastAction(`${meta.label}: ${tool.value}`)
-			}}>
+		<div
+			class={[
+				'palette-demo-stepper',
+				`palette-demo-tone-${meta.tone}`,
+				`palette-demo-layout-${layoutFromScope(scope)}`,
+			]}
+			title={tooltip(item, `${meta.label} ${tool.value}`)}
+		>
+			<button
+				type="button"
+				class={['palette-demo-tool', 'palette-demo-tool-compact']}
+				disabled={tool.value - (tool.step ?? 1) < (tool.min ?? Number.NEGATIVE_INFINITY)}
+				onClick={() => {
+					tool.value = Math.max(tool.min ?? Number.NEGATIVE_INFINITY, tool.value - (tool.step ?? 1))
+					setLastAction(`${meta.label}: ${tool.value}`)
+				}}
+			>
 				−
 			</button>
 			<span class="palette-demo-stepper-value">
 				<span class="palette-demo-icon">{meta.icon ?? 'A'}</span>
 				{tool.value}
 			</span>
-			<button type="button" class={['palette-demo-tool', 'palette-demo-tool-compact']} disabled={tool.value + (tool.step ?? 1) > (tool.max ?? Number.POSITIVE_INFINITY)} onClick={() => {
-				tool.value = Math.min(tool.max ?? Number.POSITIVE_INFINITY, tool.value + (tool.step ?? 1))
-				setLastAction(`${meta.label}: ${tool.value}`)
-			}}>
+			<button
+				type="button"
+				class={['palette-demo-tool', 'palette-demo-tool-compact']}
+				disabled={tool.value + (tool.step ?? 1) > (tool.max ?? Number.POSITIVE_INFINITY)}
+				onClick={() => {
+					tool.value = Math.min(tool.max ?? Number.POSITIVE_INFINITY, tool.value + (tool.step ?? 1))
+					setLastAction(`${meta.label}: ${tool.value}`)
+				}}
+			>
 				+
 			</button>
 		</div>
@@ -1101,9 +1171,15 @@ function ButtonEditor({
 }: PaletteEditorContext<DemoRunTool, DemoPaletteItem, DemoPaletteSchema>) {
 	const meta = toolbarMeta(item)
 	return (
-		<button type="button" class={['palette-demo-tool', `palette-demo-tone-${meta.tone}`]} disabled={!tool.can} title={tooltip(item, meta.hint)} onClick={() => {
-			tool.run()
-		}}>
+		<button
+			type="button"
+			class={['palette-demo-tool', `palette-demo-tone-${meta.tone}`]}
+			disabled={!tool.can}
+			title={tooltip(item, meta.hint)}
+			onClick={() => {
+				tool.run()
+			}}
+		>
 			<span class="palette-demo-icon">{meta.icon ?? '▶'}</span>
 			<span>{meta.label}</span>
 		</button>
@@ -1402,6 +1478,7 @@ function CommandBoxPopup() {
 								selectOnPick={demoPalette.editing}
 								onEntryPick={(entryId) => {
 									popupCommandBoxUi.selectedEntryId = entryId
+									popupCommandBoxUi.selectedVariantId = undefined
 								}}
 								onEscapeOrExecute={() => {
 									closeOverlay()
@@ -1442,34 +1519,43 @@ function PopupAddPanel() {
 								return variant.toolId
 							},
 							get tool() {
-								return this.toolId && isDemoToolId(this.toolId)
-									? demoPalette.tools[this.toolId]
+								return computed.toolId && isDemoToolId(computed.toolId)
+									? demoPalette.tools[computed.toolId]
 									: undefined
 							},
 							get enumTool() {
-								return this.tool && 'type' in this.tool && this.tool.type === 'enum'
-									? this.tool
+								return computed.tool && 'type' in computed.tool && computed.tool.type === 'enum'
+									? computed.tool
 									: undefined
 							},
 							get isSetVariant() {
 								return variant.kind === 'set'
 							},
-							get canAdd() {
+							get isSelected() {
+								return popupCommandBoxUi.selectedVariantId === variant.id
+							},
+							get canDrag() {
 								return Boolean(popupAddItem(variant))
+							},
+							get dragItem() {
+								return computed.isSelected ? popupAddItem(variant) : undefined
 							},
 						}
 						return (
-							<div class={['palette-demo-add-variant', computed.isSetVariant ? 'is-set' : undefined]}>
+							<div
+								class={['palette-demo-add-variant', computed.isSetVariant ? 'is-set' : undefined]}
+							>
 								<button
 									type="button"
 									class={[
 										'palette-demo-config-header',
 										'palette-demo-add-variant-trigger',
-										computed.canAdd ? undefined : 'is-disabled',
+										computed.canDrag ? undefined : 'is-disabled',
+										computed.isSelected ? 'is-selected' : undefined,
 									]}
-									disabled={!computed.canAdd}
+									aria-pressed={computed.isSelected ? 'true' : 'false'}
 									onClick={() => {
-										addPopupVariant(variant)
+										popupCommandBoxUi.selectedVariantId = variant.id
 									}}
 								>
 									<strong>
@@ -1514,7 +1600,9 @@ function PopupAddPanel() {
 								>
 									<input
 										value={popupCommandBoxUi.enumValues}
-										placeholder={computed.enumTool?.values.map((option) => option.value).join(', ') ?? ''}
+										placeholder={
+											computed.enumTool?.values.map((option) => option.value).join(', ') ?? ''
+										}
 										update:value={(value: string) => {
 											popupCommandBoxUi.enumValues = value
 										}}
@@ -1533,6 +1621,27 @@ function PopupAddPanel() {
 										}}
 									/>
 								</ConfigRow>
+								<div
+									if={computed.isSelected && !computed.dragItem}
+									class="palette-demo-add-drag-note"
+								>
+									Complete this variant to drag it into a toolbar.
+								</div>
+								<div
+									if={computed.isSelected && computed.dragItem}
+									class="palette-demo-add-drag-source"
+								>
+									<div class="palette-demo-add-drag-note">Drag into a toolbar</div>
+									<Toolbar
+										border={popupAddPreview.border}
+										region="top"
+										track={popupAddPreview.track}
+										trackIndex={0}
+										toolbar={popupAddPreview.toolbar}
+										direction="horizontal"
+										el:class="palette-demo-toolbar palette-demo-command-toolbar palette-demo-add-drag-toolbar"
+									/>
+								</div>
 							</div>
 						)
 					}}
@@ -2051,10 +2160,6 @@ function popupAddDerivedVariants(): readonly DemoDerivedVariant[] {
 	return entry ? paletteDerivedVariants({ palette: demoPalette, entry }) : []
 }
 
-function popupAddToolbar() {
-	return initialIdeConfig.top?.[0]?.[0]?.toolbar
-}
-
 function popupAddItem(variant: DemoDerivedVariant): DemoPaletteItem | undefined {
 	if (variant.kind === 'item') {
 		return {
@@ -2123,16 +2228,6 @@ function popupAddItem(variant: DemoDerivedVariant): DemoPaletteItem | undefined 
 	return undefined
 }
 
-function addPopupVariant(variant: DemoDerivedVariant) {
-	const toolbar = popupAddToolbar()
-	const item = popupAddItem(variant)
-	if (!toolbar || !item) return
-	toolbar.push(item)
-	setLastAction(`Added ${toolbarMeta(item).label}`)
-	closeCommandBoxPopup()
-	palettes.inspecting = { item, palette: demoPalette, region: 'top' }
-}
-
 const popupAddState = {
 	get entry() {
 		return popupAddEntry()
@@ -2140,7 +2235,37 @@ const popupAddState = {
 	get variants() {
 		return popupAddDerivedVariants()
 	},
+	get selectedVariant() {
+		return this.variants.find((variant) => variant.id === popupCommandBoxUi.selectedVariantId)
+	},
+	get selectedItem() {
+		return this.selectedVariant ? popupAddItem(this.selectedVariant) : undefined
+	},
 }
+
+const popupAddPreview = reactive({
+	toolbar: reactive<PaletteToolbar<DemoPaletteItem>>([]),
+	track: reactive<PaletteTrack<DemoPaletteItem>>([]),
+	border: reactive<PaletteBorder<DemoPaletteItem>>([]),
+})
+
+popupAddPreview.track.push({ space: 0, toolbar: popupAddPreview.toolbar })
+popupAddPreview.border.push(popupAddPreview.track)
+
+effect`palette.demo.popup-add-preview`(() => {
+	if (
+		popupAddPreview.track[0]?.toolbar !== popupAddPreview.toolbar ||
+		popupAddPreview.border[0] !== popupAddPreview.track
+	) {
+		popupAddPreview.toolbar = reactive<PaletteToolbar<DemoPaletteItem>>([])
+		popupAddPreview.track = reactive<PaletteTrack<DemoPaletteItem>>([
+			{ space: 0, toolbar: popupAddPreview.toolbar },
+		])
+		popupAddPreview.border = reactive<PaletteBorder<DemoPaletteItem>>([popupAddPreview.track])
+	}
+	const item = popupAddState.selectedItem
+	popupAddPreview.toolbar.splice(0, popupAddPreview.toolbar.length, ...(item ? [item] : []))
+})
 
 const demoInspection = {
 	get entry() {

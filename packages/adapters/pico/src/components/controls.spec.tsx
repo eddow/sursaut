@@ -10,8 +10,8 @@ import {
 } from '../../demo/sections/FormControls'
 import { ButtonGroup } from './button-group'
 import { RadioButton } from './radiobutton'
+import { SplitRadioButton } from './split-radio-button'
 import { SplitButton } from './splitbutton'
-import { SplitRadioButton } from './splitradiobutton'
 
 function VerticalScope(props: { children?: JSX.Children }, scope: Record<string, unknown>) {
 	arranged(scope, { orientation: 'vertical', density: 'compact' })

@@ -12,8 +12,8 @@ import {
 	Text,
 	ThemeToggle,
 	type ThemeValue,
-	Toolbar,
 } from '@sursaut'
+import { Toolbar } from '@sursaut/adapter-pico'
 import { reactive } from 'mutts'
 import PageNav from './components/page-nav'
 import Search from './components/search'

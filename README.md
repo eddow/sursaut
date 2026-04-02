@@ -7,7 +7,7 @@ Sursaut is a monorepo containing a collection of packages for building modern we
 ## Ecosystem Status
 
 - **[@sursaut/core](./packages/core)**: The foundational reactive UI framework with JSX. It is **mostly done** and stable.
-- **[@sursaut/kit](./packages/kit)** & **[@sursaut/ui](./packages/ui)**: Client utilities, routing, and UI components. These are **quite finished** and work seamlessly with their **[pico adapter](./packages/adapters/pico)**.
+- **[@sursaut/kit](./packages/kit)** & **[@sursaut/ui](./packages/ui)**: Client utilities, routing, and headless UI components. These are **quite finished** and work seamlessly with their **[pico CSS adapter](./packages/adapters/pico)** while allowing adapters development with ease.
 - **[@sursaut/board](./packages/board)**: The full-stack meta-framework. It is currently undergoing a **complete rework** from the ground up and is not ready for general use at this time.
 
 ## 🌟 Features

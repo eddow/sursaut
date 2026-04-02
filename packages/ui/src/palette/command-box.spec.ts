@@ -1,14 +1,19 @@
 import { h } from '@sursaut/core'
+import { reactive } from 'mutts'
 import { describe, expect, it, vi } from 'vitest'
 import {
 	handlePaletteCommandBoxInputKeydown,
 	handlePaletteCommandChipKeydown,
 	Palette,
 	paletteAddItemEntries,
+	paletteCatalogEntries,
 	paletteCommandBoxModel,
 	paletteCommandEntries,
 	paletteDerivedVariants,
 	paletteEnumSubsetValues,
+	paletteToolbarItemFromCatalogPayload,
+	parsePaletteCatalogDragPayload,
+	serializePaletteCatalogDragPayload,
 } from './index'
 import { createPaletteKeys } from './keys'
 import type { PaletteConfig } from './types'
@@ -438,6 +443,255 @@ describe('paletteCommandBoxModel', () => {
 		expect(entries.find((entry) => entry.id === 'theme|light')?.keywords).toContain('day')
 	})
 
+	it('uses execute phrasing in run mode and preset labels in catalog mode for enum/boolean', () => {
+		const palette = new Palette({
+			tools: {
+				theme: {
+					type: 'enum' as const,
+					label: 'Theme',
+					get value() {
+						return 'dark' as const
+					},
+					set value(_value: 'light' | 'dark') {},
+					default: 'dark' as const,
+					values: [
+						{ value: 'light' as const, label: 'Light' },
+						{ value: 'dark' as const, label: 'Dark' },
+					],
+				},
+				notifications: {
+					type: 'boolean' as const,
+					label: 'Notifications',
+					get value() {
+						return true
+					},
+					set value(_value: boolean) {},
+					default: true,
+				},
+			},
+			keys: createPaletteKeys({}),
+		} satisfies PaletteConfig)
+
+		const runEntries = paletteCommandEntries({ palette })
+		const catalogCommands = paletteCommandEntries({ palette, mode: 'catalog' })
+		expect(runEntries.find((entry) => entry.id === 'theme|light')?.label).toBe('Set Theme to Light')
+		expect(runEntries.find((entry) => entry.id === 'notifications|false')?.label).toBe(
+			'Disable Notifications'
+		)
+		expect(catalogCommands.find((entry) => entry.id === 'theme:catalog-enum')?.label).toBe('Theme')
+		expect(catalogCommands.find((entry) => entry.id === 'notifications|true')?.label).toBe(
+			'Notifications → On (preset)'
+		)
+		expect(catalogCommands.find((entry) => entry.id === 'theme:catalog-enum')?.meta).toContain(
+			'Control'
+		)
+	})
+
+	it('defaults enum catalog to one tool-label row and omits duplicate add-item source', () => {
+		const palette = new Palette({
+			tools: {
+				mode: {
+					type: 'enum' as const,
+					label: 'Mode',
+					get value() {
+						return 'a' as const
+					},
+					set value(_v: 'a' | 'b') {},
+					default: 'a' as const,
+					values: [
+						{ value: 'a' as const, label: 'Alpha' },
+						{ value: 'b' as const, label: 'Beta' },
+					],
+				},
+			},
+			keys: createPaletteKeys({}),
+		} satisfies PaletteConfig)
+
+		const runEntries = paletteCommandEntries({ palette })
+		expect(runEntries.some((entry) => entry.id === 'mode|a')).toBe(true)
+		expect(runEntries.some((entry) => entry.id === 'mode|b')).toBe(true)
+
+		const catalogCmd = paletteCommandEntries({ palette, mode: 'catalog' }).find(
+			(entry) => entry.id === 'mode:catalog-enum'
+		)
+		expect(catalogCmd?.label).toBe('Mode')
+		expect(catalogCmd?.catalogDrag?.kind).toBe('variant')
+		if (catalogCmd?.catalogDrag?.kind === 'variant') {
+			expect(catalogCmd.catalogDrag.variant.id).toBe('tool:mode:set')
+		}
+
+		const add = paletteAddItemEntries({ palette })
+		expect(add.some((entry) => entry.id === 'tool:mode')).toBe(false)
+	})
+
+	it('per-value enums keep catalogue presets per option and an add-item tool row', () => {
+		const palette = new Palette({
+			tools: {
+				mode: {
+					type: 'enum' as const,
+					label: 'Mode',
+					commandBoxEnumCommands: 'per-value' as const,
+					get value() {
+						return 'a' as const
+					},
+					set value(_v: 'a' | 'b') {},
+					default: 'a' as const,
+					values: [
+						{ value: 'a' as const, label: 'Alpha' },
+						{ value: 'b' as const, label: 'Beta' },
+					],
+				},
+			},
+			keys: createPaletteKeys({}),
+		} satisfies PaletteConfig)
+
+		const catalog = paletteCommandEntries({ palette, mode: 'catalog' })
+		expect(catalog.some((entry) => entry.id === 'mode:catalog-enum')).toBe(false)
+		expect(catalog.find((entry) => entry.id === 'mode|a')?.label).toBe('Mode → Alpha (preset)')
+
+		const add = paletteAddItemEntries({ palette })
+		expect(add.some((entry) => entry.id === 'tool:mode')).toBe(true)
+	})
+
+	it('maps enum set catalogue variant to a bare tool id so enum editors resolve', () => {
+		const palette = new Palette({
+			tools: {
+				theme: {
+					type: 'enum' as const,
+					label: 'Theme',
+					get value() {
+						return 'dark' as const
+					},
+					set value(_v: 'light' | 'dark') {},
+					default: 'light' as const,
+					values: [
+						{ value: 'light' as const, label: 'Light' },
+						{ value: 'dark' as const, label: 'Dark' },
+					],
+				},
+			},
+			keys: createPaletteKeys({}),
+			editorDefaults: { enum: 'select' },
+			editors: {
+				enum: {
+					select: {
+						editor: () => h('div', {}),
+					},
+				},
+			},
+		} satisfies PaletteConfig)
+
+		const themeTool = palette.tools.theme
+		const item = paletteToolbarItemFromCatalogPayload(palette, {
+			kind: 'variant',
+			variant: {
+				id: 'tool:theme:set',
+				kind: 'set',
+				toolId: 'theme',
+				label: 'Theme (editor)',
+				meta: 'Control',
+				valueType: 'enum',
+				values: themeTool.values,
+			},
+		})
+		expect(item && 'tool' in item ? item.tool : undefined).toBe('theme')
+		expect(item).toBeDefined()
+		if (item && 'tool' in item) expect(palette.tool(item.tool).type).toBe('enum')
+	})
+
+	it('merges catalog commands with flattened add-item variants', () => {
+		const palette = new Palette({
+			tools: {
+				reset: {
+					label: 'Reset',
+					get can() {
+						return true
+					},
+					run() {},
+				},
+			},
+			keys: createPaletteKeys({ R: 'reset' }),
+			editors: {
+				item: {
+					commandBox: {
+						editor: () => h('div', {}),
+					},
+				},
+			},
+		} satisfies PaletteConfig)
+
+		const catalog = paletteCatalogEntries({ palette })
+		expect(catalog.some((entry) => entry.id === 'reset')).toBe(true)
+		expect(catalog.some((entry) => entry.id.startsWith('add:'))).toBe(true)
+	})
+
+	it('recomputes command-box results when entries are provided as a function', () => {
+		const state = reactive({ useWide: false })
+		const model = paletteCommandBoxModel({
+			entries: () =>
+				state.useWide
+					? [
+							{ id: 'alpha', label: 'Alpha', keywords: ['shared'], run() {} },
+							{ id: 'beta', label: 'Beta', keywords: ['shared'], run() {} },
+						]
+					: [{ id: 'alpha', label: 'Alpha', keywords: ['shared'], run() {} }],
+		})
+
+		expect(model.results.map((entry) => entry.id)).toEqual(['alpha'])
+		state.useWide = true
+		expect(model.results.map((entry) => entry.id)).toEqual(['alpha', 'beta'])
+	})
+
+	it('builds toolbar items from catalogue spec payloads', () => {
+		const palette = new Palette({
+			tools: {
+				reset: {
+					label: 'Reset',
+					get can() {
+						return true
+					},
+					run() {},
+				},
+			},
+			keys: createPaletteKeys({ R: 'reset' }),
+			editorDefaults: { run: 'button' },
+			editors: {
+				run: {
+					button: {
+						editor: () => h('div', {}),
+					},
+				},
+			},
+		} satisfies PaletteConfig)
+
+		const item = paletteToolbarItemFromCatalogPayload(palette, { kind: 'spec', spec: 'reset' })
+		expect(item && 'tool' in item ? item.tool : undefined).toBe('reset')
+	})
+
+	it('serializes and parses catalogue drag payloads', () => {
+		const specPayload = { kind: 'spec' as const, spec: 'theme|dark' }
+		const variantPayload = {
+			kind: 'variant' as const,
+			variant: {
+				id: 'tool:reset:tool',
+				label: 'Reset',
+				meta: 'Toolbar command',
+				kind: 'tool' as const,
+				toolId: 'reset',
+			},
+		}
+		expect(parsePaletteCatalogDragPayload(serializePaletteCatalogDragPayload(specPayload))).toEqual(
+			specPayload
+		)
+		const roundVariant = parsePaletteCatalogDragPayload(
+			serializePaletteCatalogDragPayload(variantPayload)
+		)
+		expect(roundVariant?.kind).toBe('variant')
+		if (roundVariant?.kind === 'variant') {
+			expect(roundVariant.variant.id).toBe('tool:reset:tool')
+		}
+	})
+
 	it('derives add-item entries and right-side variants from palette tools and editor-only items', () => {
 		const palette = new Palette({
 			tools: {
@@ -467,15 +721,8 @@ describe('paletteCommandBoxModel', () => {
 					max: 20,
 					step: 1,
 				},
-				reset: {
-					label: 'Reset Defaults',
-					get can() {
-						return true
-					},
-					run() {},
-				},
 			},
-			keys: createPaletteKeys({ R: 'reset' }),
+			keys: createPaletteKeys({}),
 			editors: {
 				item: {
 					commandBox: {
@@ -486,24 +733,16 @@ describe('paletteCommandBoxModel', () => {
 		} satisfies PaletteConfig)
 
 		const entries = paletteAddItemEntries({ palette })
-		expect(entries.find((entry) => entry.id === 'tool:theme')?.label).toBe('Theme')
+		expect(entries.some((entry) => entry.id === 'tool:theme')).toBe(false)
 		expect(entries.find((entry) => entry.id === 'item:commandBox')?.meta).toBe(
 			'Add editor-only item'
 		)
-
-		const themeVariants = paletteDerivedVariants({
-			palette,
-			entry: entries.find((entry) => entry.id === 'tool:theme')!,
-		})
-		expect(themeVariants.map((entry) => entry.kind)).toEqual(['tool', 'set'])
-		expect(themeVariants.find((entry) => entry.kind === 'set')?.valueType).toBe('enum')
 
 		const numberVariants = paletteDerivedVariants({
 			palette,
 			entry: entries.find((entry) => entry.id === 'tool:fontSize')!,
 		})
-		expect(numberVariants.map((entry) => entry.kind)).toEqual(['tool', 'set', 'action', 'action'])
-		expect(numberVariants.find((entry) => entry.action === 'inc')?.spec).toBe('fontSize:inc')
+		expect(numberVariants.map((entry) => entry.kind)).toEqual(['set'])
 	})
 
 	it('matches enum subset keywords from explicit keywords and dot-separated value names', () => {

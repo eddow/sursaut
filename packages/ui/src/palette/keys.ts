@@ -23,10 +23,10 @@ function normalizeModifier(value: string): string | undefined {
 }
 
 function normalizeKey(value: string): string {
+	if (value === ' ') return 'Space'
 	const trimmed = value.trim()
 	if (trimmed.length === 1) return trimmed.toUpperCase()
 	switch (trimmed.toLowerCase()) {
-		case ' ':
 		case 'space':
 		case 'spacebar':
 			return 'Space'
@@ -37,6 +37,12 @@ function normalizeKey(value: string): string {
 	}
 }
 
+/**
+ * Canonicalize a palette keystroke string so bindings can be compared reliably.
+ *
+ * Modifiers are ordered as `Ctrl`, `Alt`, `Shift`, `Meta` and common aliases such as
+ * `cmd`, `command`, and `escape` are normalized.
+ */
 export function normalizePaletteKeystroke(input: PaletteKeystroke): PaletteKeystroke {
 	const parts = input
 		.split('+')
@@ -59,6 +65,9 @@ export function normalizePaletteKeystroke(input: PaletteKeystroke): PaletteKeyst
 	return [...orderedModifiers, key].filter((part) => part.length > 0).join('+')
 }
 
+/**
+ * Derive the normalized palette keystroke for a DOM keyboard event.
+ */
 export function paletteKeystrokeFromEvent(event: KeyboardEvent): PaletteKeystroke {
 	const modifiers: string[] = []
 	if (event.ctrlKey) modifiers.push('Ctrl')
@@ -68,6 +77,9 @@ export function paletteKeystrokeFromEvent(event: KeyboardEvent): PaletteKeystrok
 	return [...modifiers, normalizeKey(event.key)].join('+')
 }
 
+/**
+ * Build a normalized keyboard binding registry for a palette.
+ */
 export function createPaletteKeys(bindings?: PaletteKeyBindings): PaletteKeys {
 	const normalizedBindings: PaletteKeyBindings = {}
 	for (const [keystroke, toolId] of Object.entries(bindings ?? {})) {

@@ -11,6 +11,7 @@ function ensureStableTypeEntrypoints() {
 	const entrypoints = [
 		['index.d.ts', "export * from '../src/index'\n"],
 		['dockview.d.ts', "export * from '../src/dockview'\n"],
+		['palette.d.ts', "export * from './palette/index'\n"],
 		['models/index.d.ts', "export * from '../../src/models/index'\n"],
 	]
 	return {
@@ -44,7 +45,7 @@ export default defineConfig({
 		},
 	},
 	plugins: [
-		...(isWatch ? [ensureStableTypeEntrypoints()] : []),
+		ensureStableTypeEntrypoints(),
 		sursautCorePlugin(),
 		dts({
 			include: ['src/**/*.ts', 'src/**/*.tsx'],

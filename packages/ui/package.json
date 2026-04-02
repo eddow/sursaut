@@ -29,10 +29,11 @@
 			"default": "./dist/dockview.js"
 		},
 		"./palette": {
-			"types": "./dist/palette.d.ts",
+			"types": "./dist/palette/index.d.ts",
 			"import": "./dist/palette.js",
 			"default": "./dist/palette.js"
 		},
+		"./palette.css": "./src/palette/palette.css",
 		"./models": {
 			"types": "./dist/models/index.d.ts",
 			"import": "./dist/models.js",

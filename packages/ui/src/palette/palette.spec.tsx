@@ -72,6 +72,7 @@ function editableTools(palette: Palette) {
 
 describe('palette engine', () => {
 	afterEach(() => {
+		palettes.catalogDrag = undefined
 		palettes.editing = undefined
 		palettes.dragging = undefined
 	})
