@@ -660,6 +660,17 @@ describe('useStars', () => {
 		expect(starsModel({ value: 2, maximum: 10 }).starItems.length).toBe(10)
 	})
 
+	it('updates starItems length when maximum changes reactively', () => {
+		const props = reactive({ value: 2, maximum: 3 })
+		const state = starsModel(props)
+
+		expect(state.starItems.length).toBe(3)
+
+		props.maximum = 6
+
+		expect(state.starItems.length).toBe(6)
+	})
+
 	it('readonly defaults to false', () => {
 		expect(starsModel({ value: 3 }).readonly).toBe(false)
 	})

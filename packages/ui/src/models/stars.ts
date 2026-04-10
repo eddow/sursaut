@@ -1,5 +1,6 @@
 import { defaults } from '@sursaut/core'
 import { componentStyle } from '@sursaut/kit'
+import { lift } from 'mutts'
 import type { ArrangedProps } from '../shared/types'
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -214,8 +215,10 @@ export function starsModel(props: StarsProps): StarsModel {
 		return item
 	}
 
-	const maximum = props.maximum ?? 5
-	const starItems = Array.from({ length: maximum }, (_, i) => makeItem(i))
+	const starItems = lift(function starsItems() {
+		const maximum = props.maximum ?? 5
+		return Array.from({ length: maximum }, (_, i) => makeItem(i))
+	})
 	const zeroItem = makeItem(-1)
 	const container: StarsModel['container'] = {
 		onMouseup: dragEndHandler,
