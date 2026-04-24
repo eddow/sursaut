@@ -22,17 +22,18 @@ componentStyle.sass`
 export interface PackageHeaderProps {
 	name: string
 	description: string
-	install?: string
+	/** Bash install line, or `false` to hide install (e.g. unpublished packages). */
+	install?: string | false
 }
 
 export function PackageHeader(p: PackageHeaderProps) {
-	const installCmd = () => p.install ?? `pnpm add ${p.name}`
+	const installCmd = p.install === false ? null : (p.install ?? `pnpm add ${p.name}`)
 
 	return (
 		<header class="package-header">
 			<span class="package-name">{p.name}</span>
 			<p class="package-description">{p.description}</p>
-			<Code code={installCmd()} lang="bash" />
+			{installCmd !== null ? <Code code={installCmd} lang="bash" /> : null}
 		</header>
 	)
 }

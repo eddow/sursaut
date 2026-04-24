@@ -68,6 +68,7 @@ pnpm run lint
 
 ## Documentation
 
+- **Live site:** build and deploy [`@sursaut/docs`](./packages/docs) (see [RELEASING.md](./RELEASING.md)); default canonical URL is `https://sursaut-docs.pages.dev` (override with `DOCS_SITE_URL` when building).
 - **[@sursaut/core](./packages/core)** - Core reactive framework documentation
 - **[@sursaut/kit](./packages/kit)** - Client utilities and routing documentation
 - **[@sursaut/ui](./packages/ui)** - UI components documentation

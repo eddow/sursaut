@@ -78,10 +78,10 @@ export const navigation: NavSection[] = [
 		],
 	},
 	{
-		title: '@sursaut/board',
+		title: '@sursaut/board (experimental)',
 		collapsible: true,
 		links: [
-			{ title: 'Overview', href: '/board' },
+			{ title: 'Overview (not on npm yet)', href: '/board' },
 			{ title: 'Routing', href: '/board/routing' },
 			{ title: 'SSR Flow', href: '/board/ssr' },
 			{ title: 'Middleware', href: '/board/middleware' },

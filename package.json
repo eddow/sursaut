@@ -6,8 +6,10 @@
 	"scripts": {
 		"build": "turbo run build",
 		"build:docs": "pnpm --dir packages/core build && pnpm --dir packages/kit build && pnpm --dir packages/ui build && pnpm --dir packages/adapters/pico build && pnpm --dir packages/docs build",
-		"deploy:docs": "pnpm run build:docs",
-		"deploy:docs:wrangler": "pnpm run build:docs && wrangler pages deploy packages/docs/dist --project-name sursaut-docs",
+		"docs:build": "pnpm run build:docs",
+		"docs:preview": "pnpm --dir packages/docs exec vite preview --host 127.0.0.1 --port 4173 --strictPort",
+		"deploy:docs": "pnpm run build:docs && wrangler pages deploy packages/docs/dist --project-name sursaut-docs",
+		"deploy:docs:wrangler": "pnpm run deploy:docs",
 		"build:watch": "pnpm --dir ../mutts build:watch & turbo watch build & wait",
 		"build:watch:sursaut": "turbo watch build",
 		"build:watch:stop": "pkill -f 'turbo watch build' || true; pkill -f 'rollup -c --watch' || true",
@@ -15,7 +17,7 @@
 		"clean": "rm -rf packages/*/dist packages/adapters/*/dist packages/*/.turbo packages/adapters/*/.turbo .turbo node_modules/.cache",
 		"test": "turbo run test",
 		"test:e2e": "turbo run test:e2e",
-		"lint": "turbo run lint && biome check packages/",
+		"lint": "turbo run lint && biome check",
 		"dev": "turbo run dev",
 		"demo": "turbo run demo",
 		"demo:ui": "pnpm --dir packages/ui demo",
@@ -24,7 +26,8 @@
 		"demo:board": "pnpm --dir packages/board demo",
 		"biome": "biome check packages/",
 		"biome:fix": "biome check --write packages/",
-		"biome:unsafe": "biome check --write --unsafe packages/"
+		"biome:unsafe": "biome check --write --unsafe packages/",
+		"release:verify": "bash scripts/verify-publish-packs.sh"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.6",

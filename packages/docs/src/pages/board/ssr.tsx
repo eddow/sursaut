@@ -23,6 +23,7 @@ export default function BoardSsrPage() {
 			<PackageHeader
 				name="SSR & Hydration"
 				description="First-class server-side rendering with automatic data collection and zero-config hydration."
+				install={false}
 			/>
 
 			<Section title="The Reactive Pipeline">

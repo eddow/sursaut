@@ -26,6 +26,12 @@ export { Router } from './components'
 export type { AssertSchema, RouteDefinition } from './defs'
 export { defineRoute } from './defs'
 export * from './logic'
+export {
+	getRouterPathnamePrefix,
+	setRouterPathnamePrefix,
+	toAppPath,
+	toHistoryPath,
+} from './pathname-base'
 export type {
 	OpenedRoute,
 	RouterModel,

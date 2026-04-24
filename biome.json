@@ -6,7 +6,10 @@
 			"packages/**/src/**/*.tsx",
 			"packages/**/demo/**/*.ts",
 			"packages/**/demo/**/*.tsx",
-			"sandbox/**/*.ts"
+			"sandbox/**/*.ts",
+			"!**/dist",
+			"!**/node_modules",
+			"!**/.turbo"
 		]
 	},
 	"overrides": [
@@ -58,7 +61,7 @@
 				"useIterableCallbackReturn": "off",
 				"noRedeclare": "off",
 				"noShadowRestrictedNames": "off",
-				"noGlobalIsNan": { "level": "warn", "fix": "safe"}
+				"noGlobalIsNan": { "level": "warn", "fix": "safe" }
 			},
 			"performance": {
 				"noAccumulatingSpread": "off"
@@ -66,7 +69,7 @@
 			"complexity": {
 				"noUselessFragments": "off",
 				"noBannedTypes": "off",
-				"useOptionalChain": { "level": "warn", "fix": "safe"}
+				"useOptionalChain": { "level": "warn", "fix": "safe" }
 			},
 			"security": {},
 			"correctness": {

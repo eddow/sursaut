@@ -2,13 +2,14 @@
  * Test CSS injection functionality
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { __injectCSS, getSSRStyles } from '../css'
+import { __injectCSS, __resetCssInjectionTestState, getSSRStyles } from '../css'
 
 describe('CSS Injection', () => {
 	// We need to manage the global document object carefully
 	const originalDocument = global.document
 
 	beforeEach(() => {
+		__resetCssInjectionTestState()
 		if (typeof document !== 'undefined') {
 			document.head.innerHTML = ''
 			document.body.innerHTML = ''

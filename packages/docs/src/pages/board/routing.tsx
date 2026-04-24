@@ -36,6 +36,7 @@ export default function BoardRoutingPage() {
 			<PackageHeader
 				name="Board Routing"
 				description="File-based routing with support for dynamic segments, catch-all routes, and inherited layouts."
+				install={false}
 			/>
 
 			<Section title="How Board Fits the Routing Stack">

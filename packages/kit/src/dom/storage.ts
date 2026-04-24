@@ -1,4 +1,3 @@
-import { listen } from '@sursaut/core'
 import { effect, link, reactive, type ScopedCallback } from 'mutts'
 
 /**
@@ -52,8 +51,10 @@ export function stored<T extends Record<string, any>>(initial: T): T {
 	}
 
 	let stopStorage = () => {}
-	if (typeof window !== 'undefined') {
-		stopStorage = listen(window, 'storage', eventListener as EventListener)
+	if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+		const handler = eventListener as EventListener
+		window.addEventListener('storage', handler)
+		stopStorage = () => window.removeEventListener('storage', handler)
 	}
 
 	const cleanups: ScopedCallback[] = []

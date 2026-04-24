@@ -59,6 +59,15 @@ function getCallerId(): string {
 
 let hydrationCheckerArg: undefined | { id: string }
 
+/** Clears module-level CSS injection state (for unit tests only). */
+export function __resetCssInjectionTestState(): void {
+	ssrStyles.clear()
+	injectedStyles.clear()
+	styleUsageCount.clear()
+	styleNodes.clear()
+	hydrationCheckerArg = undefined
+}
+
 export function __injectCSS(css: string): () => void {
 	const hash = hashStrings(css)
 
@@ -98,13 +107,12 @@ export function __injectCSS(css: string): () => void {
 			styleUsageCount.delete(hash)
 			injectedStyles.delete(hash)
 			const existingNode = styleNodes.get(hash)
+			const parent = existingNode?.parentNode
 			existingNode?.remove()
 			styleNodes.delete(hash)
-			if (
-				existingNode?.parentNode instanceof HTMLStyleElement &&
-				existingNode.parentNode.childNodes.length === 0
-			)
-				existingNode.parentNode.remove()
+			if (parent instanceof HTMLStyleElement && parent.childNodes.length === 0) {
+				parent.remove()
+			}
 		}
 	}
 	injectedStyles.add(hash)

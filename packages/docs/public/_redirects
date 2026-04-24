@@ -1,0 +1,2 @@
+# SPA fallback: unknown paths serve index.html (200). Static assets are matched first on Cloudflare Pages / Netlify.
+/* /index.html 200

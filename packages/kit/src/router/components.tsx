@@ -14,6 +14,7 @@ import {
 	type RouteParams,
 	type RouteWildcard,
 } from './logic.js'
+import { getRouterPathnamePrefix, toAppPath } from './pathname-base.js'
 import { routerModel } from './router-model.js'
 // TODO: Router should scroll=0 on reload - r is it something else than router ? (more general)
 // Re-export core types
@@ -204,7 +205,9 @@ export function Router<Definition extends ClientRouteDefinition>(
 ) {
 	const vm = defaults(props, {
 		get url() {
-			return `${client.url.pathname}${client.url.search}`
+			const path =
+				getRouterPathnamePrefix() === '' ? client.url.pathname : toAppPath(client.url.pathname)
+			return `${path}${client.url.search}`
 		},
 		scrollToTop: true,
 	})

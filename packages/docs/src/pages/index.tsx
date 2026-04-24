@@ -71,7 +71,7 @@ const packageRows = [
 		href: '/board',
 		name: '@sursaut/board',
 		description: 'Meta-framework for routing, SSR, middleware, and full-stack app structure',
-		status: 'Later / larger scope',
+		status: 'Experimental — not on npm in this release wave',
 	},
 ]
 

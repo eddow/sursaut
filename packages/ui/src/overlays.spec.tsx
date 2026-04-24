@@ -9,6 +9,14 @@ import {
 	toastSpec,
 } from './overlays'
 
+afterEach(() => {
+	if (vi.isFakeTimers()) {
+		vi.runOnlyPendingTimers()
+	}
+	vi.useRealTimers()
+	vi.clearAllTimers()
+})
+
 describe('Overlays', () => {
 	describe('createOverlayStack', () => {
 		it('should push and pop overlays', async () => {

@@ -3,10 +3,15 @@ import { PackageHeader, Section } from '../../components'
 export default function BoardIndexPage() {
 	return (
 		<article>
+			<p class="docs-board-banner" role="note">
+				<strong>Experimental:</strong> <code>@sursaut/board</code> is not in the current npm release
+				wave — the package is under a full rework. These pages describe direction and APIs in flux,
+				not a stable install target.
+			</p>
 			<PackageHeader
 				name="@sursaut/board"
 				description="A type-safe, scaleable meta-framework for Sursaut applications. Automated routing, SSR, and middleware integration."
-				install="pnpm add @sursaut/board"
+				install={false}
 			/>
 
 			<Section title="Philosophy">

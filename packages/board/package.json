@@ -1,6 +1,7 @@
 {
 	"name": "@sursaut/board",
 	"version": "0.1.0",
+	"private": true,
 	"description": "Full-stack meta-framework for sursaut-ts with file-based routing, SSR, and middleware",
 	"type": "module",
 	"sideEffects": false,
@@ -66,9 +67,9 @@
 	},
 	"dependencies": {
 		"@hono/node-server": "^1.19.9",
-		"@sursaut/core": "link:../core",
-		"@sursaut/kit": "link:../kit",
-		"@sursaut/ui": "link:../ui",
+		"@sursaut/core": "workspace:*",
+		"@sursaut/kit": "workspace:*",
+		"@sursaut/ui": "workspace:*",
 		"cac": "^6.7.14",
 		"hono": "^4.6.14",
 		"mutts": "^1.0.13",

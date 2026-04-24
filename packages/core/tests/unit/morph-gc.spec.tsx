@@ -36,7 +36,7 @@ describe('Morph effect GC safety', () => {
 
 		const App = () => (
 			<div>
-				{morph(state.list, (item) => (
+				{morph`gc-list`(state.list, (item) => (
 					<button onClick={() => { clicked.item = item as string }}>
 						{item as string}
 					</button>

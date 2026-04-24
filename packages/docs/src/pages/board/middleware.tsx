@@ -26,6 +26,7 @@ export default function BoardMiddlewarePage() {
 			<PackageHeader
 				name="Middleware & Interceptors"
 				description="Control the request lifecycle with hierarchical server middleware and universal client interceptors."
+				install={false}
 			/>
 
 			<Section title="Hierarchical Middleware">

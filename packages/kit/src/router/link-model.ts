@@ -3,6 +3,7 @@ import { link } from 'mutts'
 import { perf, recordPerf } from '../perf'
 import { client } from '../platform/shared'
 import { prefetchRoute } from './lazy-cache'
+import { getRouterPathnamePrefix, toAppPath, toHistoryPath } from './pathname-base'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -111,7 +112,7 @@ export function linkModel(props: LinkProps): LinkModel {
 				event.preventDefault()
 				const startedAt = perf?.now()
 				if (startedAt != null) recordPerf('route:click', startedAt)
-				client.navigate(href)
+				client.navigate(toHistoryPath(href))
 			}
 		},
 		onMousedown(event: MouseEvent) {
@@ -131,7 +132,8 @@ export function linkModel(props: LinkProps): LinkModel {
 			if (typeof href !== 'string') return undefined
 			const hrefPath = href.split('#')[0]
 			if (!hrefPath) return undefined
-			const pathname = client.url.pathname
+			const pathname =
+				getRouterPathnamePrefix() === '' ? client.url.pathname : toAppPath(client.url.pathname)
 			if (props.matchPrefix)
 				return pathname === hrefPath || pathname.startsWith(`${hrefPath}/`) ? 'page' : undefined
 			return pathname === hrefPath ? 'page' : undefined

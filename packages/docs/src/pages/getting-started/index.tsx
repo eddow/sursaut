@@ -4,7 +4,7 @@ import { Code, Section } from '../../components'
 const installFrontend = `pnpm add @sursaut/core @sursaut/kit @sursaut/ui @sursaut/adapter-pico @picocss/pico mutts
 pnpm add -D vite typescript sass
 
-# Add @sursaut/board when you want the back-end/full-stack layer.`
+# @sursaut/board is experimental / not on npm in the first release wave — add it from the monorepo when ready.`
 
 const viteConfig = `import { defineConfig } from 'vite'
 import { sursautBarrelPlugin, sursautMinimalPackage } from '@sursaut/core/plugin'

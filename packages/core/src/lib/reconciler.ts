@@ -261,14 +261,15 @@ export function processChildren(children: Children, env: Env): Node | readonly N
 		: (flatInput.map((c) => sursautElement(c, env)) as readonly SursautElement[])
 
 	const conditioned: readonly SursautElement[] =
-		needsMorph || flatElements.some((e) => e.guarded)
+		needsMorph || flatElements.some((e) => e?.guarded)
 			? tag(
 					'conditioned',
 					lift`lift:conditioned`(() => {
 						const picks: Record<string, Set<unknown>> = {}
-						for (const e of flatElements)
-							if (e.meta?.guards.pick)
-								for (const [key, value] of Object.entries(e.meta.guards.pick)) {
+						for (const e of flatElements) {
+							const pick = e?.meta?.guards?.pick
+							if (pick)
+								for (const [key, value] of Object.entries(pick)) {
 									let set = picks[key]
 									if (!set) {
 										set = new Set()
@@ -276,6 +277,7 @@ export function processChildren(children: Children, env: Env): Node | readonly N
 									}
 									set.add(collapse(value))
 								}
+						}
 						for (const key of Object.keys(picks)) {
 							const options = picks[key]
 							picks[key] = new Set()
@@ -289,6 +291,7 @@ export function processChildren(children: Children, env: Env): Node | readonly N
 						let ifOccurred = false
 						return flatElements
 							.map((e) => {
+								if (e == null) return undefined
 								const shouldRender = e.shouldRender(ifOccurred, env, picks)
 								if (shouldRender) ifOccurred = true
 								if (shouldRender !== false) return e

@@ -9,7 +9,7 @@ A **sursaut** application that serves as the living documentation for the entire
 | `@sursaut/core` | JSX factory, reactivity (`r()`), SursautElement, env, reconciler, directives (`if`, `when`, `for`, `dynamic`), two-way binding, `compose()`, SSR |
 | `@sursaut/kit` | Router, client state, `stored()`, CSS injection, Intl components, API utilities |
 | `@sursaut/ui` | 15+ components, 6 directives, overlay system, DisplayProvider, adapter pattern, CSS variable contract |
-| `@sursaut/board` | Full-stack meta-framework: file-based routing, SSR, middleware (Hono) |
+| `@sursaut/board` | Full-stack meta-framework (experimental — not published with the first npm wave; under rework) |
 | `@sursaut/adapter-pico` | PicoCSS adapter: variant traits, bridge CSS, tooltip directive, icon factory |
 | `pure-glyf` | Icon system: SVG → CSS classes, Vite plugin, icon factories |
 | `mutts` | Reactive primitives: signals, effects, reactive objects/arrays/sets/maps, zones |
@@ -295,7 +295,7 @@ pnpm dev         # Vite dev server on :5290
 1. **`<Code>` and `<Demo>` live in `@sursaut/ui`** — They're general-purpose components useful in any sursaut app (READMEs, changelogs, help pages). highlight.js is a peer dep so it's opt-in.
 2. **No codegen for API tables** — Hand-written `<ApiTable>` prop arrays are more accurate and readable than auto-generated docs. Types change rarely; descriptions need human touch.
 3. **PicoCSS adapter** — The docs app uses the Pico adapter for consistent, beautiful styling out of the box. Demonstrates the adapter pattern in action.
-4. **`private: true`** — This package is never published to npm. It's a deployable app (GitHub Pages / Netlify).
+4. **`private: true`** — This package is not published to the npm registry. It is the official deployable documentation site (e.g. Cloudflare Pages, Netlify, any static host with SPA fallback).
 5. **No SSR** — Static SPA is fine for docs. Can add prerendering later via `@sursaut/board` if SEO matters.
 6. **One route per topic** — Flat, linkable, bookmarkable. No multi-section mega-pages.
 7. **highlight.js over shiki** — Lighter bundle (~30KB vs ~2MB). Good enough for docs. TSX/SASS/JSON/bash coverage.
