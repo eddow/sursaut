@@ -17,8 +17,7 @@
 			"@sursaut/core"
 		],
 		"skipLibCheck": true,
-		"noEmit": true,
-		"baseUrl": "."
+		"noEmit": true
 	},
 	"include": [
 		"src/**/*"

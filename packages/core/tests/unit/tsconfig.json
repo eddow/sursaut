@@ -1,9 +1,8 @@
 {
 	"extends": "../../tsconfig.json",
 	"compilerOptions": {
-		"baseUrl": "..",
 		"paths": {
-			"@sursaut/core": ["../src/lib/index.ts"]
+			"@sursaut/core": ["../../src/lib/index.ts"]
 		}
 	},
 	"include": [

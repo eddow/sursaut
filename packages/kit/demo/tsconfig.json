@@ -1,7 +1,6 @@
 {
 	"extends": "../tsconfig.json",
 	"compilerOptions": {
-		"baseUrl": ".",
 		"paths": {
 			"@sursaut/kit": [
 				"../src/dom/index.ts"

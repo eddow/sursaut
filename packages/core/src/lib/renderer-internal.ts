@@ -180,6 +180,7 @@ export function setHtmlProperty(
 	value: any
 ): ScopedCallback | undefined {
 	const normalizedKey = key.toLowerCase()
+	const attributeKey = element instanceof SVGElement ? key : normalizedKey
 	const el = element as any
 	let deleter: ScopedCallback | undefined
 	try {
@@ -199,15 +200,15 @@ export function setHtmlProperty(
 		// Fallback to attribute assignment below
 	}
 	if (value === undefined || value === false) {
-		testing.renderingEvent?.('remove attribute', element, normalizedKey)
-		element.removeAttribute(normalizedKey)
+		testing.renderingEvent?.('remove attribute', element, attributeKey)
+		element.removeAttribute(attributeKey)
 		return deleter
 	}
 	const stringValue = value === true ? '' : String(value)
-	testing.renderingEvent?.('set attribute', element, normalizedKey, stringValue)
-	element.setAttribute(normalizedKey, stringValue)
+	testing.renderingEvent?.('set attribute', element, attributeKey, stringValue)
+	element.setAttribute(attributeKey, stringValue)
 	return () => {
-		element.removeAttribute(normalizedKey)
+		element.removeAttribute(attributeKey)
 		deleter?.()
 	}
 }

@@ -3,9 +3,8 @@
 	"compilerOptions": {
 		"types": ["node", "vitest/globals"],
 		"noEmit": true,
-		"baseUrl": "../..",
 		"paths": {
-			"@sursaut/kit": ["test/ep.ts"]
+			"@sursaut/kit": ["../../test/ep.ts"]
 		}
 	},
 	"include": [

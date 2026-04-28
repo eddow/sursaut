@@ -12,16 +12,15 @@
 		"types": ["node", "vitest/globals"],
 		"skipLibCheck": true,
 		"noEmit": true,
-		"baseUrl": "..",
 		"paths": {
-			"@sursaut/kit": ["test/ep.ts"],
-			"@sursaut/core": ["packages/core/src/dom/index.ts"],
-			"@sursaut/core/testing": ["packages/core/src/testing/index.ts"],
-			"@sursaut/core/*": ["packages/core/src/*"],
-			"@sursaut/core/node": ["packages/core/src/node/index.ts"],
-			"@sursaut/ui": ["packages/ui/src/index.ts"],
-			"mutts": ["mutts/src/entry-browser.dev.ts"],
-			"mutts/debug": ["mutts/debug/index.ts"]
+			"@sursaut/kit": ["../test/ep.ts"],
+			"@sursaut/core": ["../packages/core/src/dom/index.ts"],
+			"@sursaut/core/testing": ["../packages/core/src/testing/index.ts"],
+			"@sursaut/core/*": ["../packages/core/src/*"],
+			"@sursaut/core/node": ["../packages/core/src/node/index.ts"],
+			"@sursaut/ui": ["../packages/ui/src/index.ts"],
+			"mutts": ["../mutts/src/entry-browser.dev.ts"],
+			"mutts/debug": ["../mutts/debug/index.ts"]
 		}
 	},
 	"include": ["src/**/*.spec.ts", "src/**/*.spec.tsx"]

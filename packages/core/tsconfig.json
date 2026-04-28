@@ -9,7 +9,6 @@
 		"module": "ESNext",
 		"skipLibCheck": true,
 		"moduleResolution": "bundler",
-		"baseUrl": ".",
 		"paths": {
 			"@sursaut/core": [
 				"src/dom/index.ts"

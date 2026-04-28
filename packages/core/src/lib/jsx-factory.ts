@@ -248,6 +248,8 @@ const namespaceTagMap: Record<string, string> = {
 	svg: 'http://www.w3.org/2000/svg',
 	math: 'http://www.w3.org/1998/Math/MathML',
 }
+const htmlNamespace = 'http://www.w3.org/1999/xhtml'
+const namespaceEnvKey = Symbol('sursaut.namespace')
 
 export function produceDOM(
 	tagName: string,
@@ -268,10 +270,14 @@ export function produceDOM(
 			perfCounters.elementRenders++
 			perf?.mark(`element:${tagName}:start`)
 
-			const namespace = namespaceTagMap[tagName]
+			const parentNamespace = env[namespaceEnvKey] as string | undefined
+			const namespace = namespaceTagMap[tagName] || parentNamespace
 			const element = namespace
 				? document.createElementNS(namespace, tagName)
 				: document.createElement(tagName)
+			const childNamespace =
+				tagName === 'foreignObject' ? htmlNamespace : namespace || parentNamespace
+			const childEnv = childNamespace ? extend(env, { [namespaceEnvKey]: childNamespace }) : env
 			const componentToUse = env.component
 			if (componentToUse) {
 				sursautOwner.set(element, componentToUse)
@@ -279,7 +285,7 @@ export function produceDOM(
 			}
 
 			testing.renderingEvent?.('create element', tagName, element)
-			const childNodes = processChildren(children, env)
+			const childNodes = processChildren(children, childEnv)
 			link(
 				element,
 				childNodes, // Anchor the reactive array to the DOM element to prevent GC!

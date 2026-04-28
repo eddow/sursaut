@@ -12,7 +12,6 @@
 		"jsxFragmentFactory": "Fragment",
 		"types": ["vite/client"],
 		"noEmit": true,
-		"baseUrl": ".",
 		"lib": ["ES2022", "DOM", "DOM.Iterable"],
 		"paths": {
 			"+*": ["routes/+*"],
