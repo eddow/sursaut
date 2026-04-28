@@ -266,13 +266,13 @@ packages/docs/
   "type": "module",
   "dependencies": {
     "@picocss/pico": "^2",
-    "@sursaut/adapter-pico": "workspace:*",
-    "@sursaut/core": "workspace:*",
-    "@sursaut/kit": "workspace:*",
-    "@sursaut/ui": "workspace:*",
+    "@sursaut/adapter-pico": "^0.1.0",
+    "@sursaut/core": "^0.1.0",
+    "@sursaut/kit": "^0.1.0",
+    "@sursaut/ui": "^0.1.0",
     "highlight.js": "^11",
     "mutts": "^1.0.13",
-    "pure-glyf": "workspace:*"
+    "pure-glyf": "^1.0.2"
   },
   "devDependencies": {
     "@types/node": "^25",

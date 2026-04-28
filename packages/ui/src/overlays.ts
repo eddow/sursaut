@@ -223,9 +223,9 @@ export interface OverlayStackState {
 export function createOverlayStack(options: OverlayStackOptions = {}): OverlayStackState {
 	const backdropModes = options.backdropModes ?? ['modal', 'drawer-left', 'drawer-right']
 	const stack = reactive<OverlayEntry[]>([])
-	// Separate reactive set for closing IDs — avoids rebuild-fence issues when
+	// Separate reactive record for closing IDs — avoids rebuild-fence issues when
 	// mutating entry objects that are already tracked inside a <for> render.
-	const closingIds = reactive(new Set<string>())
+	const closingIds = reactive<Record<string, true>>({})
 	const overlayElements = new Map<string, HTMLElement>()
 
 	const push: PushOverlayFunction = <T>(spec: OverlaySpec<T>): Promise<T | null> => {
@@ -239,7 +239,7 @@ export function createOverlayStack(options: OverlayStackOptions = {}): OverlaySt
 					const index = stack.findIndex((e) => e.id === id)
 					if (index !== -1) {
 						entry.closing = true
-						closingIds.add(id)
+						closingIds[id] = true
 						const config = options.transitions?.[entry.mode] ?? { duration: 300 }
 						const el = overlayElements.get(id)
 						if (el) {
@@ -247,13 +247,13 @@ export function createOverlayStack(options: OverlayStackOptions = {}): OverlaySt
 								const idx = stack.findIndex((e) => e.id === id)
 								if (idx !== -1) stack.splice(idx, 1)
 								overlayElements.delete(id)
-								closingIds.delete(id)
+								delete closingIds[id]
 							})
 						} else {
 							setTimeout(() => {
 								const idx = stack.findIndex((e) => e.id === id)
 								if (idx !== -1) stack.splice(idx, 1)
-								closingIds.delete(id)
+								delete closingIds[id]
 							}, config.duration ?? 300)
 						}
 					}
@@ -271,7 +271,7 @@ export function createOverlayStack(options: OverlayStackOptions = {}): OverlaySt
 		},
 		push,
 		registerElement: (id: string, el: HTMLElement) => overlayElements.set(id, el),
-		isClosing: (id: string) => closingIds.has(id),
+		isClosing: (id: string) => closingIds[id] === true,
 		get onKeydown() {
 			return (e: KeyboardEvent) => {
 				if (stack.length === 0) return

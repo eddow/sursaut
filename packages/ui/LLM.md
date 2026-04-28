@@ -188,6 +188,8 @@ Each component file is self-contained: types + hook + helpers in one file. No pe
 Directives are plain DOM functions — not hooks. They follow the Sursaut `use:name={value}` directive signature:
 `(target: Node | Node[], value: T, scope?: Record<PropertyKey, unknown>) => (() => void) | undefined`
 
+`sizeable()` intentionally waits for parent insertion instead of gating setup on `element.isConnected`: browser `use={...}` can run before the element has a parent, and the resize handle must be inserted once the sibling layout exists.
+
 | Directive | Value type | Description |
 |-----------|-----------|-------------|
 | `resize` | `(w,h)=>void` or `{width?,height?}` | ResizeObserver wrapper |

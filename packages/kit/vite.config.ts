@@ -45,6 +45,7 @@ export default defineConfig({
     }),
   ],
   esbuild: false,
+  oxc: false,
   build: {
     sourcemap: true,
     emptyOutDir: !isWatch,
@@ -61,7 +62,10 @@ export default defineConfig({
       formats: ['es', 'cjs'],
       fileName: (format, entryName) => `${entryName}.${format === 'es' ? 'js' : 'cjs'}`,
     },
-    rollupOptions: {
+    rolldownOptions: {
+      output: {
+        keepNames: true,
+      },
       external: [
         'mutts',
         /^@sursaut\//,

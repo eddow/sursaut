@@ -102,6 +102,7 @@ export default defineConfig({
 		}),
 	],
 	esbuild: false,
+	oxc: false,
 	optimizeDeps: {
 		exclude: ['mutts'],
 	},
@@ -116,7 +117,10 @@ export default defineConfig({
 			formats: ['es', 'cjs'],
 			fileName: (format, entryName) => `${entryName}.${format === 'es' ? 'js' : 'cjs'}`,
 		},
-		rollupOptions: {
+		rolldownOptions: {
+			output: {
+				keepNames: true,
+			},
 			external: [
 				'mutts', 'jsdom',
 				'@babel/core', '@babel/types',

@@ -5,6 +5,13 @@ import { defineConfig } from 'vite'
 export default defineConfig({
 	root: __dirname,
 	plugins: [sursautCorePlugin()],
+	build: {
+		rolldownOptions: {
+			output: {
+				keepNames: true,
+			},
+		},
+	},
 	resolve: {
 		alias: [
 			{ find: '@sursaut/adapter-pico/css', replacement: resolve(__dirname, '../src/pico.sass') },

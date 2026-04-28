@@ -30,6 +30,7 @@ export default defineConfig({
     }),
   ],
   esbuild: false,
+  oxc: false,
   resolve: {
     alias: {
       'sursaut-ts/server': resolve(boardDir, '../core/src/node/index.ts'),
@@ -55,7 +56,7 @@ export default defineConfig({
       formats: ['es'],
       fileName: (format, entryName) => `${entryName}.js`,
     },
-    rollupOptions: {
+    rolldownOptions: {
       external: [
         'mutts',
         /^@sursaut\/core/,
@@ -83,6 +84,7 @@ export default defineConfig({
         'node:process',
       ],
       output: {
+        keepNames: true,
         preserveModules: true,
         entryFileNames: '[name].js',
         chunkFileNames: 'chunks/[name]-[hash].js',

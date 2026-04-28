@@ -1,18 +1,17 @@
-import { r } from '@sursaut/core'
+import { ReactiveProp } from '@sursaut/core'
 import { sizeable } from '@sursaut/ui'
 import { reactive } from 'mutts'
 import '../../src/styles/sizeable.sass'
 
 export default function SizeableDemo() {
 	const state = reactive({ width: 200 })
-	const dir = sizeable(
-		r(
-			() => state.width,
-			(v) => {
-				state.width = v
-			}
-		)
+	const width = new ReactiveProp(
+		() => state.width,
+		(v) => {
+			state.width = v
+		}
 	)
+	const dir = sizeable(width)
 	return (
 		<div data-test="sizeable-demo">
 			<p style="color: #94a3b8; margin-bottom: 16px;">

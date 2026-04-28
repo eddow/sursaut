@@ -215,7 +215,7 @@ export function starsModel(props: StarsProps): StarsModel {
 		return item
 	}
 
-	const starItems = lift(function starsItems() {
+	const starItems = lift`starsItems`(() => {
 		const maximum = props.maximum ?? 5
 		return Array.from({ length: maximum }, (_, i) => makeItem(i))
 	})

@@ -17,6 +17,7 @@ import {
 	type PaletteAddItemCommandEntry,
 	type PaletteBorder,
 	type PaletteBorders,
+	type PaletteCommandBoxModel,
 	type PaletteDerivedVariant,
 	type PaletteEditorContext,
 	type PaletteItem,
@@ -1187,7 +1188,7 @@ function ButtonEditor({
 }
 
 type DemoCommandBoxProps = {
-	readonly commandBox: ReturnType<typeof paletteCommandBoxModel>
+	readonly commandBox: PaletteCommandBoxModel<DemoPaletteSchema>
 	readonly editable?: boolean
 	readonly palette?: DemoPalette
 	readonly icon?: string

@@ -1,6 +1,6 @@
 {
 	"name": "@sursaut/adapter-pico",
-	"version": "2.0.0",
+	"version": "0.1.0",
 	"description": "PicoCSS framework adapter for @sursaut/ui v2",
 	"type": "module",
 	"main": "./dist/index.cjs",
@@ -32,20 +32,20 @@
 	},
 	"peerDependencies": {
 		"@picocss/pico": "^2.0.0",
-		"@sursaut/core": "workspace:*",
-		"@sursaut/ui": "workspace:*"
+		"@sursaut/core": "^0.1.0",
+		"@sursaut/ui": "^0.1.0"
 	},
 	"devDependencies": {
 		"@picocss/pico": "^2.1.1",
-		"@sursaut/core": "workspace:*",
-		"@sursaut/kit": "workspace:*",
-		"@sursaut/ui": "workspace:*",
+		"@sursaut/core": "^0.1.0",
+		"@sursaut/kit": "^0.1.0",
+		"@sursaut/ui": "^0.1.0",
 		"@tabler/icons": "^3.36.1",
 		"mutts": "^1.0.13",
-		"pure-glyf": "workspace:*",
+		"pure-glyf": "^1.0.2",
 		"sass": "^1.93.2",
 		"typescript": "^5.9.3",
-		"vite": "^7.3.1",
+		"vite": "^8.0.10",
 		"vite-plugin-dts": "^4.5.3",
 		"vitest": "^4.0.18"
 	},

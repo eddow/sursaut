@@ -55,70 +55,93 @@ function getProperty(direction: Direction): string {
 export function sizeable(prop: PerhapsReactive<number>) {
 	return (target: Node | readonly Node[], _access: EffectAccess) => {
 		const el = resolveElement(target as Node | Node[])
-		if (!el?.isConnected) return
+		if (!el) return
 
 		const element: HTMLElement = el
-		const parent = element.parentElement
+		let observer: MutationObserver | undefined
+		let cleanup: (() => void) | undefined
+		let warnedMissingFlex = false
 
-		if (!parent) {
-			console.warn('use:sizeable requires a parent element')
-			return
+		function setup(): boolean {
+			const parent = element.parentElement
+			if (!parent) return false
+			const host = parent
+
+			const siblings = Array.from(host.children) as HTMLElement[]
+			const flexSibling = findFlexSibling(element, siblings)
+			if (!flexSibling) {
+				warnedMissingFlex = true
+				return false
+			}
+
+			const direction = detectDirection(host)
+			const edge = detectEdge(element, siblings, flexSibling, direction)
+			const property = getProperty(direction)
+			const rp = prop instanceof ReactiveProp ? prop : null
+
+			host.style.setProperty(property, `${collapse(prop)}px`)
+
+			element.classList.add('sizeable', `sizeable-${edge}`)
+
+			const handle = document.createElement('div')
+			handle.className = `sizeable-handle sizeable-handle-${edge}`
+			handle.style.cursor = getCursor(edge)
+
+			host.insertBefore(handle, element.nextSibling)
+
+			let startPos = 0
+			let startSize = 0
+
+			function onMouseDown(e: MouseEvent) {
+				e.preventDefault()
+				e.stopPropagation()
+				startPos = direction === 'horizontal' ? e.clientX : e.clientY
+				startSize = direction === 'horizontal' ? element.offsetWidth : element.offsetHeight
+				document.addEventListener('mousemove', onMouseMove)
+				document.addEventListener('mouseup', onMouseUp)
+				handle.classList.add('dragging')
+				element.classList.add('dragging')
+			}
+
+			function onMouseMove(e: MouseEvent) {
+				let delta = (direction === 'horizontal' ? e.clientX : e.clientY) - startPos
+				if (edge === 'left' || edge === 'top') delta = -delta
+				const newSize = startSize + delta
+				host.style.setProperty(property, `${newSize}px`)
+				rp?.set?.(newSize)
+			}
+
+			function onMouseUp() {
+				document.removeEventListener('mousemove', onMouseMove)
+				document.removeEventListener('mouseup', onMouseUp)
+				handle.classList.remove('dragging')
+				element.classList.remove('dragging')
+			}
+
+			handle.addEventListener('mousedown', onMouseDown)
+
+			cleanup = () => {
+				handle.removeEventListener('mousedown', onMouseDown)
+				document.removeEventListener('mousemove', onMouseMove)
+				document.removeEventListener('mouseup', onMouseUp)
+				handle.remove()
+				element.classList.remove('sizeable', `sizeable-${edge}`, 'dragging')
+			}
+			return true
 		}
 
-		const siblings = Array.from(parent.children) as HTMLElement[]
-		const flexSibling = findFlexSibling(element, siblings)
-		if (!flexSibling) return
-
-		const direction = detectDirection(parent)
-		const edge = detectEdge(element, siblings, flexSibling, direction)
-		const property = getProperty(direction)
-		const rp = prop instanceof ReactiveProp ? prop : null
-
-		parent.style.setProperty(property, `${collapse(prop)}px`)
-
-		element.classList.add('sizeable', `sizeable-${edge}`)
-
-		const handle = document.createElement('div')
-		handle.className = `sizeable-handle sizeable-handle-${edge}`
-		handle.style.cursor = getCursor(edge)
-
-		parent.insertBefore(handle, element.nextSibling)
-
-		let startPos = 0
-		let startSize = 0
-
-		function onMouseDown(e: MouseEvent) {
-			e.preventDefault()
-			e.stopPropagation()
-			startPos = direction === 'horizontal' ? e.clientX : e.clientY
-			startSize = direction === 'horizontal' ? element.offsetWidth : element.offsetHeight
-			document.addEventListener('mousemove', onMouseMove)
-			document.addEventListener('mouseup', onMouseUp)
-			handle.classList.add('dragging')
-			element.classList.add('dragging')
+		if (!setup()) {
+			if (!warnedMissingFlex && typeof MutationObserver !== 'undefined') {
+				observer = new MutationObserver(() => {
+					if (!cleanup && setup()) observer?.disconnect()
+				})
+				observer.observe(document.documentElement, { childList: true, subtree: true })
+			}
 		}
-
-		function onMouseMove(e: MouseEvent) {
-			let delta = (direction === 'horizontal' ? e.clientX : e.clientY) - startPos
-			if (edge === 'left' || edge === 'top') delta = -delta
-			const newSize = startSize + delta
-			parent!.style.setProperty(property, `${newSize}px`)
-			rp?.set?.(newSize)
-		}
-
-		function onMouseUp() {
-			document.removeEventListener('mousemove', onMouseMove)
-			document.removeEventListener('mouseup', onMouseUp)
-			handle.classList.remove('dragging')
-			element.classList.remove('dragging')
-		}
-
-		handle.addEventListener('mousedown', onMouseDown)
 
 		return () => {
-			handle.removeEventListener('mousedown', onMouseDown)
-			handle.remove()
-			element.classList.remove('sizeable', `sizeable-${edge}`, 'dragging')
+			observer?.disconnect()
+			cleanup?.()
 		}
 	}
 }

@@ -187,6 +187,113 @@ describe('Router reactive view selection', () => {
 		stop()
 	})
 
+	test('re-renders a parameterized route when params change', async () => {
+		const adapter = createTestAdapter('http://localhost/users/1')
+		setPlatform(adapter)
+		const mutableClient = adapter.client as unknown as {
+			url: {
+				href: string
+				origin: string
+				pathname: string
+				search: string
+				hash: string
+				segments: string[]
+				query: Record<string, string>
+			}
+			history: { length: number; navigation: 'load' | 'push' | 'replace' | 'pop' }
+		}
+		let renders = 0
+		const stop = latch(
+			document.body,
+			h(Router, {
+				routes: [
+					{
+						path: '/users/[id]' as const,
+						view: (spec: { params: Record<string, string> }) => {
+							renders += 1
+							return h('div', { 'data-test': 'user-id' }, `ID: ${spec.params.id}`)
+						},
+					},
+				],
+				notFound: () => h('div', { 'data-test': 'user-id' }, 'missing'),
+			}),
+			adapter.client as unknown as Record<PropertyKey, unknown>
+		)
+
+		expect(document.querySelector('[data-test="user-id"]')?.textContent).toBe('ID: 1')
+		expect(renders).toBe(1)
+
+		mutableClient.url.href = 'http://localhost/users/42'
+		mutableClient.url.pathname = '/users/42'
+		mutableClient.url.search = ''
+		mutableClient.url.hash = ''
+		mutableClient.url.segments = ['users', '42']
+		mutableClient.url.query = {}
+		mutableClient.history.navigation = 'push'
+		await Promise.resolve()
+
+		expect(document.querySelector('[data-test="user-id"]')?.textContent).toBe('ID: 42')
+		expect(renders).toBeGreaterThan(1)
+
+		stop()
+	})
+
+	test('keeps nested routers reactive inside a mounted catch-all branch', async () => {
+		const adapter = createTestAdapter('http://localhost/router/users/1')
+		setPlatform(adapter)
+		const mutableClient = adapter.client as unknown as {
+			url: {
+				href: string
+				origin: string
+				pathname: string
+				search: string
+				hash: string
+				segments: string[]
+				query: Record<string, string>
+			}
+			history: { length: number; navigation: 'load' | 'push' | 'replace' | 'pop' }
+		}
+		const innerRoutes = [
+			{
+				path: '/router/users/[id]' as const,
+				view: (spec: { params: Record<string, string> }) =>
+					h('div', { 'data-test': 'nested-user-id' }, `ID: ${spec.params.id}`),
+			},
+		]
+		const stop = latch(
+			document.body,
+			h(Router, {
+				routes: [
+					{
+						path: '/router/[...rest]' as const,
+						view: () =>
+							h(Router, {
+								routes: innerRoutes,
+								notFound: () => h('div', { 'data-test': 'nested-user-id' }, 'inner missing'),
+							}),
+					},
+				],
+				notFound: () => h('div', { 'data-test': 'nested-user-id' }, 'outer missing'),
+			}),
+			adapter.client as unknown as Record<PropertyKey, unknown>
+		)
+
+		expect(document.querySelector('[data-test="nested-user-id"]')?.textContent).toBe('ID: 1')
+
+		mutableClient.url.href = 'http://localhost/router/users/42'
+		mutableClient.url.pathname = '/router/users/42'
+		mutableClient.url.search = ''
+		mutableClient.url.hash = ''
+		mutableClient.url.segments = ['router', 'users', '42']
+		mutableClient.url.query = {}
+		mutableClient.history.navigation = 'push'
+		await Promise.resolve()
+
+		expect(document.querySelector('[data-test="nested-user-id"]')?.textContent).toBe('ID: 42')
+
+		stop()
+	})
+
 	test('renders the matched route when pathname carries a fragment suffix', () => {
 		const adapter = createTestAdapter('http://localhost/docs')
 		setPlatform(adapter)

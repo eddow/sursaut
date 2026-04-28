@@ -138,3 +138,5 @@ Intl is separate on purpose.
 5. No arrow-function JSX children: `{() => expr}` stays a raw function and is dropped by the reconciler. Use `{expr}`.
 6. `models.ts` is useful for other sursaut libraries (for example `linkModel()`), but it is not intended as end-consumer API.
 7. For async route-module rendering in kit, prefer a stable mounted subtree (`use` + `latch`) over relying on the parent router `lift` to observe promise completion.
+8. Catch-all route branches that must stay mounted also need a stable mounted outlet (`use` + `latch`); returning cached nodes directly from the router `lift` can leave nested routers/effects disposed while the DOM still looks present.
+9. Vite 8 uses Rolldown/OXC minification by default. `esbuild: false` and `oxc: false` do not preserve runtime `Function.name` values in library output; set `build.rolldownOptions.output.keepNames: true`. For mutts captioned APIs, prefer template naming such as ``lift`routerCompute`(() => {})`` over `lift(function routerCompute() {})`.

@@ -815,7 +815,7 @@ export interface PaletteCommandBoxKeywordSuggestion {
 /**
  * Headless state and actions for the palette command box.
  */
-export interface PaletteCommandBoxModel {
+export interface PaletteCommandBoxModel<TSchema extends PaletteSchema = PaletteSchema> {
 	readonly input: {
 		value: string
 		readonly placeholder?: string
@@ -826,7 +826,7 @@ export interface PaletteCommandBoxModel {
 		readonly keywords: readonly string[]
 		readonly categories: readonly string[]
 	}
-	readonly results: readonly PaletteCommandBoxEntry[]
+	readonly results: readonly PaletteCommandBoxEntry<TSchema>[]
 	readonly suggestions: readonly PaletteCommandBoxKeywordSuggestion[]
 	readonly categories: {
 		readonly available: readonly string[]
@@ -846,14 +846,14 @@ export interface PaletteCommandBoxModel {
 	}
 	readonly selection: {
 		readonly index: number
-		readonly item: PaletteCommandBoxEntry | undefined
-		select(entryId?: string): PaletteCommandBoxEntry | undefined
+		readonly item: PaletteCommandBoxEntry<TSchema> | undefined
+		select(entryId?: string): PaletteCommandBoxEntry<TSchema> | undefined
 		set(index: number): void
 		next(): void
 		previous(): void
 		clear(): void
 	}
-	select(entryId?: string): PaletteCommandBoxEntry | undefined
+	select(entryId?: string): PaletteCommandBoxEntry<TSchema> | undefined
 	execute(entryId?: string): unknown
 	search(query: PaletteCommandBoxQuery): void
 	handleKeyDown(event: KeyboardEvent): boolean
@@ -862,7 +862,10 @@ export interface PaletteCommandBoxModel {
 /**
  * Sync an input event into a command-box model.
  */
-export function setPaletteCommandBoxInput(commandBox: PaletteCommandBoxModel, event: Event) {
+export function setPaletteCommandBoxInput<TSchema extends PaletteSchema>(
+	commandBox: PaletteCommandBoxModel<TSchema>,
+	event: Event
+) {
 	if (event.currentTarget instanceof HTMLInputElement) {
 		commandBox.input.value = event.currentTarget.value
 	}
@@ -871,8 +874,8 @@ export function setPaletteCommandBoxInput(commandBox: PaletteCommandBoxModel, ev
 /**
  * Keyboard helper for removable category and keyword chips.
  */
-export function handlePaletteCommandChipKeydown(options: {
-	commandBox: PaletteCommandBoxModel
+export function handlePaletteCommandChipKeydown<TSchema extends PaletteSchema>(options: {
+	commandBox: PaletteCommandBoxModel<TSchema>
 	event: KeyboardEvent
 	token: string
 	type?: 'category' | 'keyword'
@@ -888,8 +891,8 @@ export function handlePaletteCommandChipKeydown(options: {
 /**
  * Keyboard helper for the command-box input field.
  */
-export function handlePaletteCommandBoxInputKeydown(options: {
-	commandBox: PaletteCommandBoxModel
+export function handlePaletteCommandBoxInputKeydown<TSchema extends PaletteSchema>(options: {
+	commandBox: PaletteCommandBoxModel<TSchema>
 	event: KeyboardEvent
 	onAfterExecute?: () => void
 }) {
@@ -902,12 +905,14 @@ export function handlePaletteCommandBoxInputKeydown(options: {
 /**
  * Create a headless command-box model for a palette command list.
  */
-export function paletteCommandBoxModel(options: {
-	entries: readonly PaletteCommandBoxEntry[] | (() => readonly PaletteCommandBoxEntry[])
+export function paletteCommandBoxModel<TSchema extends PaletteSchema = PaletteSchema>(options: {
+	entries:
+		| readonly PaletteCommandBoxEntry<TSchema>[]
+		| (() => readonly PaletteCommandBoxEntry<TSchema>[])
 	placeholder?: string
 	enterAction?: 'execute' | 'select' | (() => 'execute' | 'select')
-}): PaletteCommandBoxModel {
-	function readEntries(): readonly PaletteCommandBoxEntry[] {
+}): PaletteCommandBoxModel<TSchema> {
+	function readEntries(): readonly PaletteCommandBoxEntry<TSchema>[] {
 		return typeof options.entries === 'function' ? options.entries() : options.entries
 	}
 
@@ -999,7 +1004,7 @@ export function paletteCommandBoxModel(options: {
 		},
 	}
 
-	function entrySearchData(entry: PaletteCommandBoxEntry) {
+	function entrySearchData(entry: PaletteCommandBoxEntry<TSchema>) {
 		const keywords = uniqueNormalized(entry.keywords ?? [])
 		const categories = uniqueNormalized(entry.categories ?? [])
 		const searchable = normalizeCommandBoxToken(
@@ -1013,7 +1018,10 @@ export function paletteCommandBoxModel(options: {
 		}
 	}
 
-	function entryScore(entry: PaletteCommandBoxEntry, freeTerms: readonly string[]): number {
+	function entryScore(
+		entry: PaletteCommandBoxEntry<TSchema>,
+		freeTerms: readonly string[]
+	): number {
 		const data = entrySearchData(entry)
 		let score = 0
 		for (const term of freeTerms) {
@@ -1228,7 +1236,7 @@ export function paletteCommandBoxModel(options: {
 		},
 	}
 
-	const model: PaletteCommandBoxModel = {
+	const model: PaletteCommandBoxModel<TSchema> = {
 		input,
 		query,
 		results,

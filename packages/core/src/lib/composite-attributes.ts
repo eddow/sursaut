@@ -93,7 +93,7 @@ function trackWrite(rp: ReactiveProp<any>, value: any): boolean {
 	// Establish a temporary watcher so reactiveOptions.touched fires even with no pre-existing watchers
 	let stopWatcher: (() => void) | undefined
 	try {
-		stopWatcher = effect(function probeWatcher() {
+		stopWatcher = effect`probeWatcher`(() => {
 			rp.get()
 		})
 		rp.set(value)

@@ -1,6 +1,6 @@
 {
 	"name": "@sursaut/kit",
-	"version": "1.0.0",
+	"version": "0.1.0",
 	"description": "Routing, i18n, and application utilities for Sursaut",
 	"type": "module",
 	"sideEffects": [
@@ -80,7 +80,7 @@
 		"perf": "VITE_PERF=true VITE_PERF_LOG=true pnpm run test:e2e"
 	},
 	"dependencies": {
-		"@sursaut/core": "workspace:*",
+		"@sursaut/core": "^0.1.0",
 		"arktype": "^2.1.0",
 		"mutts": "^1.0.13"
 	},
@@ -90,7 +90,7 @@
 		"jsdom": "^27.4.0",
 		"rollup": "4.57.1",
 		"typescript": "^5.9.3",
-		"vite": "7.3.1",
+		"vite": "^8.0.10",
 		"vite-plugin-dts": "^4.5.3",
 		"vitest": "^4.0.18"
 	},

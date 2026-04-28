@@ -33,7 +33,10 @@ export default defineConfig({
 	],
 	build: {
 		chunkSizeWarningLimit: 600,
-		rollupOptions: {
+		rolldownOptions: {
+			output: {
+				keepNames: true,
+			},
 			onwarn(warning, warn) {
 				if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return
 				if (warning.message?.includes('node:async_hooks')) return

@@ -113,7 +113,7 @@ const NotesPanel = (props: { id: string }) => {
 	)
 }
 
-const CrashPanel = (props: { id: string }) => {
+const CrashPanel = (props: { id: string }): JSX.Element => {
 	throw new Error(`Crash route ${props.id} crashed`)
 }
 

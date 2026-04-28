@@ -40,7 +40,10 @@ export default defineConfig({
 		},
 		sourcemap: true,
 		emptyOutDir: !isWatch,
-		rollupOptions: {
+		rolldownOptions: {
+			output: {
+				keepNames: true,
+			},
 			external: [/^@sursaut\//, /^dockview-core/, /^mutts/],
 		},
 	},

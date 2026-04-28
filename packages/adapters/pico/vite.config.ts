@@ -24,7 +24,10 @@ export default defineConfig({
 			fileName: (format) => `index.${format === 'es' ? 'mjs' : 'cjs'}`,
 		},
 		sourcemap: true,
-		rollupOptions: {
+		rolldownOptions: {
+			output: {
+				keepNames: true,
+			},
 			external: [/^@sursaut\//, /^mutts/, /^pure-glyf/, '@picocss/pico', 'arktype'],
 		},
 	},

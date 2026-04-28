@@ -67,9 +67,9 @@
 	},
 	"dependencies": {
 		"@hono/node-server": "^1.19.9",
-		"@sursaut/core": "workspace:*",
-		"@sursaut/kit": "workspace:*",
-		"@sursaut/ui": "workspace:*",
+		"@sursaut/core": "^0.1.0",
+		"@sursaut/kit": "^0.1.0",
+		"@sursaut/ui": "^0.1.0",
 		"cac": "^6.7.14",
 		"hono": "^4.6.14",
 		"mutts": "^1.0.13",
@@ -81,7 +81,7 @@
 		"@vitest/coverage-v8": "^4.0.18",
 		"jsdom": "^27.4.0",
 		"typescript": "^5.9.3",
-		"vite": "^7.3.1",
+		"vite": "^8.0.10",
 		"vitest": "^4.0.18"
 	},
 	"files": [

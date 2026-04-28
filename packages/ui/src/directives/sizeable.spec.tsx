@@ -1,6 +1,6 @@
 import { ReactiveProp } from '@sursaut/core'
 import { markMounted, markUnmounted } from '@sursaut/core/testing'
-import { type EffectAccess, effect } from 'mutts'
+import type { EffectAccess } from 'mutts'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sizeable } from './sizeable'
 
@@ -123,39 +123,23 @@ describe('sizeable directive', () => {
 		expect(element.classList.contains('sizeable')).toBe(false)
 	})
 
-	it('defers setup until element is mounted', async () => {
+	it('waits for parent insertion before setup', async () => {
 		const unmounted = document.createElement('div')
 		const flex = document.createElement('div')
 		flex.style.flex = '1'
 
-		let cleanup: (() => void) | undefined
-		const stop = effect`sizeable.spec.deferSetup.initial`(() => {
-			cleanup?.()
-			cleanup = sizeable(300)(unmounted, noopAccess) as any
-		})
+		parent.innerHTML = ''
 
-		expect(unmounted.classList.contains('sizeable')).toBe(false)
+		const cleanup = sizeable(300)(unmounted, noopAccess)
 		expect(parent.querySelector('.sizeable-handle')).toBeNull()
 
-		parent.innerHTML = ''
 		parent.appendChild(unmounted)
 		parent.appendChild(flex)
-		markMounted(unmounted)
-		markMounted(flex)
-
-		// Re-trigger the effect after mounting
-		stop()
-		const stop2 = effect`sizeable.spec.deferSetup.remounted`(() => {
-			cleanup?.()
-			cleanup = sizeable(300)(unmounted, noopAccess) as any
-		})
+		await Promise.resolve()
 
 		expect(unmounted.classList.contains('sizeable')).toBe(true)
 		expect(parent.querySelector('.sizeable-handle')).toBeTruthy()
 
-		stop2()
 		cleanup?.()
-		markUnmounted(unmounted)
-		markUnmounted(flex)
 	})
 })

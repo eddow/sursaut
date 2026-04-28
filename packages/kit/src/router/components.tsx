@@ -192,6 +192,12 @@ function hasRouteView<Definition extends ClientRouteDefinition>(
 	return 'view' in route && typeof route.view === 'function'
 }
 
+function keepsRenderedOutputMounted<Definition extends ClientRouteDefinition>(
+	route: RouterRouteDefinition<Definition>
+): boolean {
+	return route.path.includes('[...')
+}
+
 // === COMPONENTS ===
 
 /**
@@ -221,6 +227,7 @@ export function Router<Definition extends ClientRouteDefinition>(
 	let activeNavigationFrom: string | undefined
 	let lastRenderedDefinition: RouterRouteDefinition<Definition> | undefined
 	let lastRenderedOutput: Node[] | undefined
+	let lastRenderedOutputUpdatesItself = false
 	const routeSpecificationState = untracked`router:routeSpecificationState`(() =>
 		reactive({
 			current: null as RouteSpecification<RouterRouteDefinition<Definition>> | null,
@@ -438,7 +445,53 @@ export function Router<Definition extends ClientRouteDefinition>(
 		)
 	}
 
-	return lift(function routerCompute() {
+	const MountedRouteOutlet = (
+		mountedProps: {
+			match: RouteSpecification<RouterRouteDefinition<Definition>>
+			render: RouterRender<RouterRouteDefinition<Definition>>
+		},
+		mountedScope: Record<PropertyKey, unknown>
+	) => {
+		return (
+			<div
+				style="display: contents"
+				use={(target: Node | Node[]) => {
+					const host = Array.isArray(target) ? target[0] : target
+					if (!(host instanceof Element)) return
+
+					let stopLatched: (() => void) | undefined
+					try {
+						stopLatched = latch(
+							host,
+							mountedProps.render(mountedProps.match, mountedScope),
+							mountedScope
+						)
+					} catch (err) {
+						emitRouteError(mountedProps.match, err)
+						console.error('Router view error:', err)
+						stopLatched = latch(
+							host,
+							<div style="padding: 20px; border: 1px solid #ff6b6b; background-color: #ffe0e0; color: #d63031; margin: 20px;">
+								<h2 style="margin-top: 0">Something went wrong</h2>
+								<p>Error loading route.</p>
+								<details>
+									<summary>Error details</summary>
+									<pre style="background-color: #f8f9fa; padding: 10px; border-radius: 4px; overflow: auto; font-size: 12px; margin-top: 10px;">
+										{err instanceof Error ? err.stack : String(err)}
+									</pre>
+								</details>
+							</div>,
+							mountedScope
+						)
+					}
+
+					link(host, () => stopLatched?.())
+				}}
+			/>
+		)
+	}
+
+	return lift`routerCompute`(() => {
 		try {
 			const matchStartedAt = perf?.now()
 			const match = matcher(vm.url)
@@ -458,22 +511,32 @@ export function Router<Definition extends ClientRouteDefinition>(
 				const opened = model.open(vm.url)
 				const current = publishRouteSpecification(opened?.match ?? match)
 				if (!current) throw new Error('Route specification missing after successful match')
-				if (lastRenderedDefinition === current.definition && lastRenderedOutput) {
+				if (
+					lastRenderedDefinition === current.definition &&
+					lastRenderedOutput &&
+					lastRenderedOutputUpdatesItself
+				) {
 					emitRouteEnd(current, 'match')
 					return lastRenderedOutput
 				}
 				if (hasRouteView(current.definition)) {
 					try {
 						const renderStartedAt = perf?.now()
-						const output = renderElements(current.definition.view(current, scope))
+						const output = keepsRenderedOutputMounted(current.definition)
+							? renderElements(
+									<MountedRouteOutlet match={current} render={current.definition.view} />
+								)
+							: renderElements(current.definition.view(current, scope))
 						if (renderStartedAt != null) recordPerf('route:render', renderStartedAt)
 						lastRenderedDefinition = current.definition
 						lastRenderedOutput = output
+						lastRenderedOutputUpdatesItself = keepsRenderedOutputMounted(current.definition)
 						emitRouteEnd(current, 'match')
 						return output
 					} catch (err) {
 						lastRenderedDefinition = undefined
 						lastRenderedOutput = undefined
+						lastRenderedOutputUpdatesItself = false
 						emitRouteError(current, err)
 						console.error('Router view error:', err)
 						return renderElements(
@@ -497,15 +560,19 @@ export function Router<Definition extends ClientRouteDefinition>(
 				if (cachedView) {
 					try {
 						const renderStartedAt = perf?.now()
-						const output = renderElements(cachedView(current, scope))
+						const output = keepsRenderedOutputMounted(current.definition)
+							? renderElements(<MountedRouteOutlet match={current} render={cachedView} />)
+							: renderElements(cachedView(current, scope))
 						if (renderStartedAt != null) recordPerf('route:render', renderStartedAt)
 						lastRenderedDefinition = current.definition
 						lastRenderedOutput = output
+						lastRenderedOutputUpdatesItself = keepsRenderedOutputMounted(current.definition)
 						emitRouteEnd(current, 'match')
 						return output
 					} catch (err) {
 						lastRenderedDefinition = undefined
 						lastRenderedOutput = undefined
+						lastRenderedOutputUpdatesItself = false
 						emitRouteError(current, err)
 						console.error('Router view error:', err)
 						return renderElements(
@@ -533,12 +600,14 @@ export function Router<Definition extends ClientRouteDefinition>(
 				)
 				lastRenderedDefinition = current.definition
 				lastRenderedOutput = output
+				lastRenderedOutputUpdatesItself = true
 				return output
 			}
 			model.clear()
 			publishRouteSpecification(null)
 			lastRenderedDefinition = undefined
 			lastRenderedOutput = undefined
+			lastRenderedOutputUpdatesItself = false
 			const notFoundStartedAt = perf?.now()
 			const output = renderElements(vm.notFound({ routes: vm.routes, url: vm.url }, scope))
 			if (notFoundStartedAt != null) recordPerf('route:not-found', notFoundStartedAt)
@@ -548,6 +617,7 @@ export function Router<Definition extends ClientRouteDefinition>(
 			publishRouteSpecification(null)
 			lastRenderedDefinition = undefined
 			lastRenderedOutput = undefined
+			lastRenderedOutputUpdatesItself = false
 			emitRouteError(null, err)
 			console.error('Router matching error:', err)
 			return renderElements(

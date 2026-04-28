@@ -1,6 +1,6 @@
-import type { Children as SourceChildren, SursautElement, Env } from '../lib/sursaut-element'
-import type { StyleInput } from '../lib/styles'
 import type { EffectAccess, EffectCloser, MorphPosition } from 'mutts'
+import type { StyleInput } from '../lib/styles'
+import type { Env, Children as SourceChildren, SursautElement } from '../lib/sursaut-element'
 
 declare global {
 	var h: (type: any, props?: any, ...children: any[]) => JSX.Element

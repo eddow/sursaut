@@ -62,7 +62,10 @@ export default defineConfig({
       },
       formats: ['es', 'cjs'],
     },
-    rollupOptions: {
+    rolldownOptions: {
+      output: {
+        keepNames: true,
+      },
       external: ['vite', 'node:fs', 'node:path', /^@sursaut\/core/, /^@sursaut\/ui/]
     },
     sourcemap: 'inline'

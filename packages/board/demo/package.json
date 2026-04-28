@@ -3,8 +3,8 @@
 	"private": true,
 	"type": "module",
 	"dependencies": {
-		"@sursaut/board": "workspace:*",
-		"@sursaut/core": "workspace:*",
+		"@sursaut/board": "^0.1.0",
+		"@sursaut/core": "^0.1.0",
 		"hono": "^4.0.0"
 	}
 }
