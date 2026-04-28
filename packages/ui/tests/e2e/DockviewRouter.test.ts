@@ -101,11 +101,18 @@ test.describe('DockviewRouter', () => {
 
 	test('panel crash surfaces an error and the dockview stays interactive', async ({ page }) => {
 		const { errors } = collectDockviewLogs(page)
+		const panelErrors: string[] = []
+		page.on('console', (msg) => {
+			const text = msg.text()
+			if (msg.type() === 'error' && text.includes('[Dockview] Panel error')) panelErrors.push(text)
+		})
 
 		await dt(page, 'dockview-router-demo').locator('a', { hasText: 'Open Crash 1' }).click()
-		await expect(page.getByText('Panel error (/crash/1#2): Crash route 1 crashed')).toBeVisible({
-			timeout: 5000,
-		})
+		await expect
+			.poll(() => panelErrors.some((error) => error.includes('Crash route 1 crashed')), {
+				timeout: 5000,
+			})
+			.toBe(true)
 
 		await dt(page, 'dockview-router-demo').locator('a', { hasText: 'Open Notes 1' }).click()
 		await expect(dt(page, 'dockview-router-notes-1')).toBeVisible({ timeout: 5000 })

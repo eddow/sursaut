@@ -8,7 +8,7 @@ export default defineConfig({
       'sursaut-ts': path.resolve(__dirname, '../core/src'),
       'sursaut-ui': path.resolve(__dirname, '../ui/src'),
       '@sursaut/kit': path.resolve(__dirname, '../kit/src'),
-      'mutts': path.resolve(__dirname, '../../../mutts/src'),
+      'mutts': path.resolve(__dirname, '../../../mutts'),
       'npc-script': path.resolve(__dirname, '../../../npcs/src'),
       'omni18n': path.resolve(__dirname, '../../../omni18n/src'),
       'sursaut-board/client': path.resolve(__dirname, 'src/client'),

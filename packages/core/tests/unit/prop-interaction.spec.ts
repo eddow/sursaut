@@ -74,7 +74,7 @@ describe('PropInteraction tracking', () => {
 		expect(rp.interaction).toBe<PropInteraction>('write')
 		void proxy.x
 		expect(rp.interaction).toBe<PropInteraction>('bidi')
-		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('write-only'), expect.anything())
+		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('write-only'))
 	})
 
 	it('set after read-only: warns', () => {
@@ -87,7 +87,7 @@ describe('PropInteraction tracking', () => {
 		void proxy.x
 		expect(rp.interaction).toBe<PropInteraction>('read')
 		proxy.x = 7
-		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('read-only'), expect.anything())
+		expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('read-only'))
 	})
 
 	it('error mode: get after write-only throws', () => {

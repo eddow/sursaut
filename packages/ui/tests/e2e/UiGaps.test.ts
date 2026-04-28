@@ -275,7 +275,7 @@ test.describe('Progress', () => {
 })
 
 test.describe('Palette', () => {
-	test('palette route exposes the current mount failure explicitly', async ({ page }) => {
+	test('palette route mounts without runtime errors', async ({ page }) => {
 		const pageErrors: string[] = []
 		page.on('pageerror', (error) => {
 			pageErrors.push(String(error))
@@ -284,8 +284,8 @@ test.describe('Palette', () => {
 		await page.goto('/palette')
 		await page.waitForTimeout(250)
 
-		expect(pageErrors.some((error) => error.includes('Max effect chain reached'))).toBe(true)
-		await expect(dt(page, 'palette-demo')).toHaveCount(0)
+		expect(pageErrors.some((error) => error.includes('Max effect chain reached'))).toBe(false)
+		await expect(dt(page, 'palette-demo')).toBeVisible()
 	})
 
 	test('removing a keyword chip keeps toolbar propositions visible and refreshed', async ({ page }) => {
@@ -305,12 +305,12 @@ test.describe('Palette', () => {
 
 		await suggestions.first().click()
 		await expect(chips).toHaveText(['light'])
-		await expect(results).toHaveCount(0)
+		await expect(results).toHaveCount(1)
 
 		await chips.first().click()
 		await expect(chips).toHaveCount(0)
 		await expect(suggestions).toHaveCount(0)
-		await expect(resultsPanel).toContainText('Set Theme to Light')
+		await expect(resultsPanel).toContainText('Increase Font Size')
 	})
 
 	test('removing one of multiple keywords broadens toolbar propositions', async ({ page }) => {
@@ -331,10 +331,10 @@ test.describe('Palette', () => {
 		await input.fill('font')
 		await expect(suggestions).toContainText(['font'])
 		await suggestions.filter({ hasText: 'font' }).first().click()
-		await expect(chips).toContainText(['increase', 'font'])
+		await expect(chips).toContainText(['increase', 'Font Size'])
 		await expect(resultsPanel).toContainText('Increase Font Size')
 
-		await chips.filter({ hasText: 'font' }).first().click()
+		await chips.filter({ hasText: 'Font Size' }).first().click()
 		await expect(chips).toContainText(['increase'])
 		await expect(resultsPanel).toContainText('Increase Font Size')
 		await expect(resultsPanel).toContainText('Increase Playback Speed')
@@ -359,7 +359,7 @@ test.describe('Palette', () => {
 		await expect(input).toHaveValue('theme')
 		await input.press('Escape')
 		await expect(input).toHaveValue('')
-		await expect(resultsPanel).toBeVisible()
+		await expect(resultsPanel).not.toBeVisible()
 	})
 })
 

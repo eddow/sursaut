@@ -7,6 +7,7 @@ import {
 	type RouterRender,
 } from '@sursaut/kit'
 import AccordionDemo from './components/AccordionDemo'
+import CheckButtonDemo from './components/CheckButtonDemo'
 import DisplayContextDemo from './components/DisplayContextDemo'
 import DockviewDemo from './components/DockviewDemo'
 import DockviewRouterDemo from './components/DockviewRouterDemo'
@@ -41,6 +42,7 @@ const routes: DemoRoute[] = [
 	{ path: '/overlay', label: 'Overlays', view: () => <OverlayDemo /> },
 	{ path: '/drawer', label: null, view: () => <OverlayDemo /> },
 	{ path: '/accordion', label: 'Accordion', view: () => <AccordionDemo /> },
+	{ path: '/checkbutton', label: null, view: () => <CheckButtonDemo /> },
 	{ path: '/dockview', label: 'Dockview', view: () => <DockviewDemo /> },
 	{
 		path: '/dockview-router/[...route]',

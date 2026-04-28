@@ -242,19 +242,17 @@ export function createOverlayStack(options: OverlayStackOptions = {}): OverlaySt
 						closingIds[id] = true
 						const config = options.transitions?.[entry.mode] ?? { duration: 300 }
 						const el = overlayElements.get(id)
+						const removeEntry = () => {
+							overlayElements.delete(id)
+							if (typeof globalThis.Node === 'undefined') return
+							const idx = stack.findIndex((e) => e.id === id)
+							if (idx !== -1) stack.splice(idx, 1)
+							delete closingIds[id]
+						}
 						if (el) {
-							applyTransition(el, 'exit', config, () => {
-								const idx = stack.findIndex((e) => e.id === id)
-								if (idx !== -1) stack.splice(idx, 1)
-								overlayElements.delete(id)
-								delete closingIds[id]
-							})
+							applyTransition(el, 'exit', config, removeEntry)
 						} else {
-							setTimeout(() => {
-								const idx = stack.findIndex((e) => e.id === id)
-								if (idx !== -1) stack.splice(idx, 1)
-								delete closingIds[id]
-							}, config.duration ?? 300)
+							setTimeout(removeEntry, config.duration ?? 300)
 						}
 					}
 					resolve(value as T | null)

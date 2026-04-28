@@ -109,4 +109,21 @@ describe('Spread Reactivity', () => {
 		state.attrs.id = 'updated'
 		expect(collapse(inAttrs.get('id'))).toBe('updated')
 	})
+
+	it('stops reactive spread key discovery after unmount', async () => {
+		const state = reactive<{ attrs: Record<string, string> }>({
+			attrs: {},
+		})
+
+		unmount = latch(container, <button {...state.attrs}>Click</button>)
+		const button = container.querySelector('button')!
+
+		unmount()
+		unmount = undefined
+
+		state.attrs = { title: 'late' }
+		await new Promise((r) => setTimeout(r, 0))
+
+		expect(button.hasAttribute('title')).toBe(false)
+	})
 })

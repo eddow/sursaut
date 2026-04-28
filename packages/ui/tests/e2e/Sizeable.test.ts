@@ -6,8 +6,9 @@ test.describe('sizeable directive', () => {
 	test('handle is rendered and panel has sizeable class', async ({ page }) => {
 		await page.goto('/sizeable')
 		const panel = dt(page, 'sizeable-panel')
+		const container = dt(page, 'sizeable-container')
 		await expect(panel).toHaveClass(/sizeable/)
-		await expect(panel.locator('.sizeable-handle')).toBeVisible()
+		await expect(container.locator('.sizeable-handle')).toBeVisible()
 	})
 
 	test('drag handle resizes the panel and writes back to state', async ({ page }) => {
@@ -16,7 +17,7 @@ test.describe('sizeable directive', () => {
 		const widthDisplay = dt(page, 'sizeable-width')
 		await expect(widthDisplay).toContainText('200px')
 
-		const handle = dt(page, 'sizeable-panel').locator('.sizeable-handle')
+		const handle = dt(page, 'sizeable-container').locator('.sizeable-handle')
 		const box = await handle.boundingBox()
 		if (!box) throw new Error('handle not found')
 

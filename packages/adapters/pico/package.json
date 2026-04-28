@@ -47,7 +47,7 @@
 		"typescript": "^5.9.3",
 		"vite": "^8.0.10",
 		"vite-plugin-dts": "^4.5.3",
-		"vitest": "^4.0.18"
+		"vitest": "^4.1.4"
 	},
 	"keywords": ["sursaut", "picocss", "adapter", "css"],
 	"author": "fmdm",

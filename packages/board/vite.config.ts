@@ -37,7 +37,7 @@ export default defineConfig({
       'sursaut-ts': resolve(boardDir, '../core/src'),
       'sursaut-ui': resolve(boardDir, '../ui/src'),
       '@sursaut/kit': resolve(boardDir, '../kit/src'),
-      'mutts': resolve(rootDir, '../../../mutts/src'),
+      'mutts': resolve(rootDir, '../../../mutts'),
       'npc-script': resolve(rootDir, '../../../npcs/src'),
       'omni18n': resolve(rootDir, '../../../omni18n/src'),
       'sursaut-board/client': resolve(boardDir, 'src/client'),

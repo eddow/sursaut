@@ -37,6 +37,10 @@ export default defineConfig({
 	webServer: {
 		command: 'pnpm demo',
 		cwd: projectRootDir,
+		env: {
+			CHOKIDAR_INTERVAL: '1000',
+			CHOKIDAR_USEPOLLING: 'true',
+		},
 		port,
 		timeout: 120_000,
 		reuseExistingServer: true,

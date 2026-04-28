@@ -7,7 +7,6 @@ import { playwright } from '@vitest/browser-playwright'
 // @ts-expect-error Leave vite do his stuffs
 const rootDir = fileURLToPath(new URL('.', import.meta.url))
 const isBrowser = process.env.TEST_ENV === 'browser'
-
 const workspaceRoot = resolve(rootDir, '..')
 export const createBaseConfig = (packageDir: string) => {
 	return defineConfig({
@@ -17,12 +16,11 @@ export const createBaseConfig = (packageDir: string) => {
 			}),
 		],
 		esbuild: false,
+		oxc: false,
 		resolve: {
 			alias: {
 				'mutts/debug': resolve(workspaceRoot, '../mutts/debug/index.ts'),
-				'mutts': resolve(workspaceRoot, isBrowser
-					? '../mutts/src/entry-browser.dev.ts'
-					: '../mutts/src/entry-node.dev.ts'),
+				'mutts': resolve(workspaceRoot, '../mutts'),
 				'pure-glyf': resolve(workspaceRoot, 'packages/pure-glyf/src/index.ts'),
 				'@sursaut/core/testing': resolve(
 					workspaceRoot,

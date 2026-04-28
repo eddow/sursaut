@@ -83,8 +83,8 @@ export default defineConfig({
 						if (!existsSync(file)) continue
 						const content = readFileSync(file, 'utf8')
 						const normalized = content.replace(
-							/from\s+['"](?:\.\.\/)+mutts\/dist['"]/g,
-							"from 'mutts'"
+							/from\s+['"](?:\.\.\/)+(mutts)(?:\/[^'"]*)?['"]/g,
+							"from '$1'"
 						)
 						writeFileSync(file, normalized)
 					}
