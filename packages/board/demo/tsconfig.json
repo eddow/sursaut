@@ -14,7 +14,7 @@
 		"noEmit": true,
 		"lib": ["ES2022", "DOM", "DOM.Iterable"],
 		"paths": {
-			"+*": ["routes/+*"],
+			"+*": ["./routes/+*"],
 			"@sursaut/board": ["../src/index.ts"],
 			"@sursaut/board/*": ["../src/*"],
 			"@sursaut/core": ["../../core/src"],

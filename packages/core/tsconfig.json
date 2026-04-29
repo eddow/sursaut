@@ -11,7 +11,7 @@
 		"moduleResolution": "bundler",
 		"paths": {
 			"@sursaut/core": [
-				"src/dom/index.ts"
+				"./src/dom/index.ts"
 			],
 			"mutts": [
 				"../../mutts/dist"

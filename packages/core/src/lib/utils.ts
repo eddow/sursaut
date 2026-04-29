@@ -81,3 +81,55 @@ export function getEnvPath<T = unknown>(env: Env, path: string): T {
 		return acc && typeof acc === 'object' ? acc[key] : undefined
 	}, env)
 }
+
+const lazyHandler: ProxyHandler<{ fn: () => any }> = {
+	get({ fn }: any, prop) {
+		const value = fn()
+		return (value as any)[prop]
+	},
+	set({ fn }: any, prop, val) {
+		const value = fn()
+		;(value as any)[prop] = val
+		return true
+	},
+	ownKeys({ fn }: any) {
+		const value = fn()
+		return Reflect.ownKeys(value)
+	},
+	getOwnPropertyDescriptor({ fn }: any, prop) {
+		const value = fn()
+		return Reflect.getOwnPropertyDescriptor(value, prop)
+	},
+	has({ fn }: any, prop) {
+		const value = fn()
+		return prop in value
+	},
+	getPrototypeOf({ fn }: any) {
+		const value = fn()
+		return Object.getPrototypeOf(value)
+	},
+	deleteProperty({ fn }: any, prop) {
+		const value = fn()
+		return delete (value as any)[prop]
+	},
+	defineProperty({ fn }: any, prop, descriptor) {
+		const value = fn()
+		return Reflect.defineProperty(value, prop, descriptor)
+	},
+	isExtensible({ fn }: any) {
+		const value = fn()
+		return Object.isExtensible(value)
+	},
+	preventExtensions({ fn }: any) {
+		const value = fn()
+		return Object.preventExtensions(value)
+	},
+	setPrototypeOf({ fn }: any, proto) {
+		const value = fn()
+		return Object.setPrototypeOf(value, proto)
+	},
+}
+
+export function lazy<T extends object>(fn: () => T): T {
+	return new Proxy({ fn }, lazyHandler) as T
+}
