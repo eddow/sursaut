@@ -1,4 +1,3 @@
-//import { reactiveOptions } from 'mutts'
 import { Fragment, h } from './lib/jsx-factory'
 
 export default function setGlobals() {
@@ -17,12 +16,4 @@ export default function setGlobals() {
 		)
 	}
 	g[GLOBAL_SURSAUT_KEY] = { version: '1.0.0', timestamp: Date.now() }
-
-	/*if (false)
-		reactiveOptions.introspection = {
-			gatherReasons: { lineages: 'both' },
-			logErrors: true,
-			enableHistory: true,
-			historySize: 100,
-		}*/
 }

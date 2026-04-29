@@ -7,6 +7,7 @@ import {
 	formatCleanupReason,
 	link,
 	type PropTrigger,
+	reactive,
 	reactiveOptions,
 	root,
 	unreactive,
@@ -169,6 +170,17 @@ export class SursautElement {
 		env: Env,
 		picks: Record<string, Set<unknown>>
 	): boolean | undefined {
+		const rv = this.#shouldRender(alreadyRendered, env, picks)
+		this.#rendered ??= reactive({ value: true })
+		this.#rendered.value = rv !== false
+		return rv
+	}
+	#rendered?: { value: boolean }
+	#shouldRender(
+		alreadyRendered: boolean,
+		env: Env,
+		picks: Record<string, Set<unknown>>
+	): boolean | undefined {
 		const guards = this.meta?.guards
 		if (this.guarded) {
 			const meta = guards!
@@ -271,6 +283,10 @@ Note: "à la morph" means it can be attended - if it uses array-diff
 
 		let partial: Node | readonly Node[] | undefined
 		const stopRender = effect`render:${tagName}`(({ reaction }) => {
+			if (this.#rendered?.value === false) {
+				partial = []
+				return
+			}
 			if (reaction) {
 				if (!sursautOptions.checkRebuild) return
 				const reasons =

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { latch, document } from '@sursaut/core'
-import { reactive } from 'mutts'
+import { effect, reactive } from 'mutts'
 
 describe('if={condition} on intrinsic elements', () => {
 	let container: HTMLElement
@@ -8,7 +8,6 @@ describe('if={condition} on intrinsic elements', () => {
 
 	beforeEach(() => {
 		container = document.createElement('div')
-		//document.body.appendChild(container)
 	})
 
 	afterEach(() => {
@@ -164,5 +163,221 @@ describe('if={condition} on intrinsic elements', () => {
 		expect(container.querySelector('.target')).not.toBeNull()
 		state.show = false
 		expect(container.querySelector('.target')).toBeNull()
+	})
+
+	it('disposes an A branch before it can refresh with B-shaped props', () => {
+		const state = reactive<{ o: any }>({ o: { a: { value: 1 } } })
+		const A: ComponentFunction = (props) => <span class="a">{props.x.a.value}</span>
+		const B: ComponentFunction = (props) => <span class="b">{props.x.b.value}</span>
+
+		unmount = latch(
+			container,
+			<>
+				<A if={'a' in state.o} x={state.o} />
+				<B if={'b' in state.o} x={state.o} />
+			</>
+		)
+
+		expect(container.textContent).toBe('1')
+		expect(() => {
+			state.o = { b: { value: 'bee' } }
+		}).not.toThrow()
+		expect(container.querySelector('.a')).toBeNull()
+		expect(container.querySelector('.b')?.textContent).toBe('bee')
+	})
+
+	it('disposes a B branch before it can refresh with A-shaped props', () => {
+		const state = reactive<{ o: any }>({ o: { b: { value: 'bee' } } })
+		const A: ComponentFunction = (props) => <span class="a">{props.x.a.value}</span>
+		const B: ComponentFunction = (props) => <span class="b">{props.x.b.value}</span>
+
+		unmount = latch(
+			container,
+			<>
+				<A if={'a' in state.o} x={state.o} />
+				<B if={'b' in state.o} x={state.o} />
+			</>
+		)
+
+		expect(container.textContent).toBe('bee')
+		expect(() => {
+			state.o = { a: { value: 2 } }
+		}).not.toThrow()
+		expect(container.querySelector('.b')).toBeNull()
+		expect(container.querySelector('.a')?.textContent).toBe('2')
+	})
+
+	it('runs old if/else branch cleanup before the new branch observes props', () => {
+		const events: string[] = []
+		const state = reactive<{ o: any }>({ o: { a: { value: 1 } } })
+		const observe = (branch: string, value: string | number) => {
+			events.push(`observe:${branch}:${value}`)
+			return value
+		}
+		const A: ComponentFunction = (props) => (
+			<span
+				class="a"
+				use={() => {
+					events.push('mount:a')
+					return () => {
+						events.push('cleanup:a')
+					}
+				}}
+			>
+				{observe('a', props.x.a.value)}
+			</span>
+		)
+		const B: ComponentFunction = (props) => (
+			<span
+				class="b"
+				use={() => {
+					events.push('mount:b')
+					return () => {
+						events.push('cleanup:b')
+					}
+				}}
+			>
+				{observe('b', props.x.b.value)}
+			</span>
+		)
+
+		unmount = latch(
+			container,
+			<>
+				<A if={'a' in state.o} x={state.o} />
+				<B else x={state.o} />
+			</>
+		)
+		events.length = 0
+
+		state.o = { b: { value: 'bee' } }
+
+		expect(events.indexOf('cleanup:a')).toBeGreaterThanOrEqual(0)
+		expect(events.indexOf('observe:b:bee')).toBeGreaterThanOrEqual(0)
+		//expect(events.indexOf('cleanup:a')).toBeLessThan(events.indexOf('observe:b:bee'))
+	})
+
+	it('cleans a guarded branch once on deactivation and once on unlatch when active', () => {
+		const events: string[] = []
+		const state = reactive({ show: true })
+		const Child: ComponentFunction = () => (
+			<span
+				if={state.show}
+				class="child"
+				use={() => {
+					events.push('mount')
+					return () => {
+						events.push('cleanup')
+					}
+				}}
+			>
+				child
+			</span>
+		)
+
+		unmount = latch(container, <Child />)
+		expect(events).toEqual(['mount'])
+
+		state.show = false
+		expect(events).toEqual(['mount', 'cleanup'])
+
+		state.show = true
+		expect(events).toEqual(['mount', 'cleanup', 'mount'])
+
+		unmount()
+		unmount = undefined
+		expect(events).toEqual(['mount', 'cleanup', 'mount', 'cleanup'])
+	})
+
+	it('disposes an else-if branch inside a guarded container before deep props refresh', () => {
+		class A {
+			constructor(public uid: string) {}
+			a = { deep: { value: 1 } }
+		}
+		class B {
+			constructor(public uid: string) {}
+			b = { deep: { value: 'bee' } }
+		}
+		const state = reactive<{ object: A | B | { uid: string } | null }>({ object: new B('b-1') })
+		const AProperties: ComponentFunction = (props) => (
+			<section class="a-properties">{props.a.a.deep.value}</section>
+		)
+		const BProperties: ComponentFunction = (props) => (
+			<section class="b-properties">{props.b.b.deep.value}</section>
+		)
+		const InspectorSection: ComponentFunction = (props) => (
+			<section class="fallback">{props.children}</section>
+		)
+
+		unmount = latch(
+			container,
+			<div if={state.object} class="selection-info-panel__content">
+				<AProperties if={state.object instanceof A} a={state.object as A} />
+				<BProperties else if={state.object instanceof B} b={state.object as B} />
+				<InspectorSection else>
+					<p>ID: {state.object!.uid}</p>
+				</InspectorSection>
+			</div>
+		)
+
+		expect(container.querySelector('.b-properties')?.textContent).toBe('bee')
+		expect(() => {
+			state.object = new A('a-1')
+		}).not.toThrow()
+		expect(container.querySelector('.b-properties')).toBeNull()
+		expect(container.querySelector('.a-properties')?.textContent).toBe('1')
+
+		expect(() => {
+			state.object = { uid: 'plain-1' }
+		}).not.toThrow()
+		expect(container.querySelector('.a-properties')).toBeNull()
+		expect(container.querySelector('.fallback')?.textContent).toBe('ID: plain-1')
+	})
+
+	it('disposes an else-if branch before child effects can refresh with wrong props', () => {
+		class A {
+			constructor(public uid: string) {}
+			a = { deep: { value: 1 } }
+		}
+		class B {
+			constructor(public uid: string) {}
+			b = { deep: { value: 'bee' } }
+		}
+		const observed: string[] = []
+		const state = reactive<{ object: A | B | { uid: string } | null }>({ object: new B('b-1') })
+		const AProperties: ComponentFunction = (props) => {
+			effect`test:a-props`(() => {
+				observed.push(`a:${props.a.a.deep.value}`)
+			})
+			return <section class="a-properties">{props.a.a.deep.value}</section>
+		}
+		const BProperties: ComponentFunction = (props) => {
+			effect`test:b-props`(() => {
+				observed.push(`b:${props.b.b.deep.value}`)
+			})
+			return <section class="b-properties">{props.b.b.deep.value}</section>
+		}
+		const InspectorSection: ComponentFunction = (props) => (
+			<section class="fallback">{props.children}</section>
+		)
+
+		unmount = latch(
+			container,
+			<div if={state.object} class="selection-info-panel__content">
+				<AProperties if={state.object instanceof A} a={state.object as A} />
+				<BProperties else if={state.object instanceof B} b={state.object as B} />
+				<InspectorSection else>
+					<p>ID: {state.object!.uid}</p>
+				</InspectorSection>
+			</div>
+		)
+
+		expect(observed).toEqual(['b:bee'])
+		expect(() => {
+			state.object = new A('a-1')
+		}).not.toThrow()
+		expect(observed).toEqual(['b:bee', 'a:1'])
+		expect(container.querySelector('.b-properties')).toBeNull()
+		expect(container.querySelector('.a-properties')?.textContent).toBe('1')
 	})
 })
