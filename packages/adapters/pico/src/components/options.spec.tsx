@@ -1,6 +1,10 @@
 import { document, latch } from '@sursaut/core'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import OptionsSection, { ComboboxFixture, SelectFixture } from '../../demo/sections/Options'
+import OptionsSection, {
+	ComboboxFixture,
+	IconPickerFixture,
+	SelectFixture,
+} from '../../demo/sections/Options'
 
 describe('options components', () => {
 	let container: HTMLElement
@@ -80,5 +84,29 @@ describe('options components', () => {
 		expect(updatedVitestCheck.style.opacity).toBe('1')
 		const chosen = container.textContent ?? ''
 		expect(chosen).toContain('TypeScript, Sursaut, Vitest')
+	})
+
+	it('renders icon picker as a choose button with a filterable selection panel', () => {
+		stop = latch(container, <IconPickerFixture />)
+
+		const picker = container.querySelector('[data-testid="icon-picker"]') as HTMLDetailsElement
+		const summary = picker.querySelector('summary') as HTMLElement
+		expect(summary.textContent).toContain('Star')
+
+		summary.click()
+
+		const input = picker.querySelector('input') as HTMLInputElement
+		expect(input.type).toBe('search')
+		input.value = 'lucide lookup'
+		input.dispatchEvent(new Event('input', { bubbles: true }))
+
+		const buttons = Array.from(picker.querySelectorAll('button[role="option"]'))
+		expect(buttons).toHaveLength(1)
+		expect(buttons[0]?.textContent).toContain('Search')
+
+		;(buttons[0] as HTMLButtonElement).click()
+
+		expect(picker.open).toBe(false)
+		expect(summary.textContent).toContain('Search')
 	})
 })

@@ -1,5 +1,6 @@
-import { Combobox, Multiselect, Select } from '@sursaut/adapter-pico'
+import { commonEmojiIconItems, type IconPickerItem, type IconPickerValue } from '@sursaut/ui'
 import { reactive } from 'mutts'
+import { Combobox, IconPicker, Multiselect, Select } from '../../src/components'
 import { DemoCard, DemoGrid, DemoSection, DemoState } from './shared'
 
 export function SelectFixture() {
@@ -18,11 +19,54 @@ export function ComboboxFixture() {
 	)
 }
 
+const iconItems: readonly IconPickerItem[] = [
+	...commonEmojiIconItems,
+	{
+		value: { source: 'tabler', id: 'home' },
+		label: 'Home',
+		group: 'Tabler',
+		keywords: ['house', 'navigation', 'start'],
+		preview: 'H',
+	},
+	{
+		value: { source: 'tabler', id: 'star' },
+		label: 'Star',
+		group: 'Tabler',
+		keywords: ['favorite', 'rating'],
+		preview: 'S',
+	},
+	{
+		value: { source: 'lucide', id: 'search' },
+		label: 'Search',
+		group: 'Lucide',
+		keywords: ['find', 'lookup', 'magnifier'],
+		preview: 'Q',
+	},
+]
+
+const techItems = ['TypeScript', 'Sursaut', 'PicoCSS', 'Vitest']
+
+function iconValueText(value: IconPickerValue | undefined): string {
+	if (!value) return 'none'
+	return 'source' in value ? `${value.source}/${value.id}` : value.value
+}
+
+export function IconPickerFixture() {
+	return (
+		<IconPicker
+			items={iconItems}
+			value={{ value: '⭐' }}
+			el={{ 'data-testid': 'icon-picker' }}
+		/>
+	)
+}
+
 export default function OptionsSection() {
 	const state = reactive({
 		selectValue: 'beta',
 		comboValue: 'alpha',
 		items: new Set(['TypeScript', 'Sursaut']),
+		icon: { value: '⭐' } as IconPickerValue,
 	})
 
 	return (
@@ -53,14 +97,24 @@ export default function OptionsSection() {
 					title="Multiselect"
 					footer={<DemoState label="Chosen" value={Array.from(state.items).join(', ')} />}
 				>
-					<Multiselect
+					<Multiselect<string>
 						label="Tech stack"
-						items={['TypeScript', 'Sursaut', 'PicoCSS', 'Vitest']}
+						items={techItems}
 						value={state.items}
 						onChange={(value: Set<string>) => {
 							state.items = value
 						}}
 						closeOnSelect={false}
+					/>
+				</DemoCard>
+				<DemoCard title="Icon picker" footer={<DemoState label="Chosen" value={iconValueText(state.icon)} />}>
+					<IconPicker
+						label="Choose icon"
+						items={iconItems}
+						value={state.icon}
+						onChange={(value: IconPickerValue) => {
+							state.icon = value
+						}}
 					/>
 				</DemoCard>
 			</DemoGrid>

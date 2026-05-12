@@ -13,6 +13,7 @@ import DockviewDemo from './components/DockviewDemo'
 import DockviewRouterDemo from './components/DockviewRouterDemo'
 import DragDropDemo from './components/DragDropDemo'
 import FormDemo from './components/FormDemo'
+import IconPickerDemo from './components/IconPickerDemo'
 import MenuDemo from './components/MenuDemo'
 import MultiSelectDemo from './components/MultiSelectDemo'
 import OverlayDemo from './components/OverlayDemo'
@@ -51,6 +52,7 @@ const routes: DemoRoute[] = [
 		view: () => <DockviewRouterDemo />,
 	},
 	{ path: '/drag-drop', label: 'Drag & Drop', view: () => <DragDropDemo /> },
+	{ path: '/icon-picker', label: 'IconPicker', view: () => <IconPickerDemo /> },
 	{ path: '/menu', label: 'Menu', view: () => <MenuDemo /> },
 	{ path: '/multiselect', label: 'MultiSelect', view: () => <MultiSelectDemo /> },
 	{ path: '/palette', label: 'Palette', view: () => <PaletteDemo /> },
