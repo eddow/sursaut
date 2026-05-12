@@ -163,6 +163,7 @@ export type PaletteEditableTool<TTools extends PaletteTools = PaletteTools> = Ex
 >
 export type PaletteToolFamily<TTools extends PaletteTools = PaletteTools> =
 	| 'run'
+	| 'item'
 	| PaletteEditableTool<TTools>['type']
 
 export type PaletteToolByFamily<
@@ -289,6 +290,78 @@ export type PaletteToolbarItem<
 	TConfig = unknown,
 > = PaletteToolToolbarItem<TTool, TEditor, TConfig> | PaletteEditorOnlyToolbarItem<TEditor, TConfig>
 
+/**
+ * Toolbar item that opens a child toolbar track perpendicularly from the parent toolbar.
+ */
+export type PaletteDrawerToolbarItem<
+	TEditor extends string = string,
+	TConfig = unknown,
+> = PaletteToolbarItemBase & {
+	/**
+	 * The drawer editor type.
+	 */
+	readonly editor: 'drawer'
+	/**
+	 * The child toolbar to display when the drawer is open.
+	 */
+	readonly toolbar: PaletteToolbar
+	/**
+	 * Drawer configuration options.
+	 */
+	config?: {
+		/**
+		 * Optional icon for the drawer trigger button.
+		 */
+		readonly icon?: string | JSX.Element | (() => JSX.Element)
+		/**
+		 * Optional label for the drawer trigger button.
+		 */
+		readonly label?: string
+		/**
+		 * Optional hint text for accessibility.
+		 */
+		readonly hint?: string
+		/**
+		 * Optional tone for the drawer trigger button.
+		 */
+		readonly tone?: string
+		/**
+		 * How the drawer opens.
+		 */
+		readonly open?: 'click' | 'hover' | 'press'
+		/**
+		 * Placement of the drawer relative to the trigger.
+		 */
+		readonly placement?: 'start' | 'center' | 'end'
+	} & TConfig
+}
+
+/**
+ * State for a drawer toolbar item.
+ */
+export type PaletteDrawerState = {
+	/**
+	 * The drawer toolbar item.
+	 */
+	readonly item: PaletteDrawerToolbarItem
+	/**
+	 * The parent palette region where the drawer trigger lives.
+	 */
+	readonly parentRegion: PaletteRegion
+	/**
+	 * The axis of the parent toolbar track.
+	 */
+	readonly parentAxis: 'horizontal' | 'vertical'
+	/**
+	 * The axis of the child toolbar track (perpendicular to parent).
+	 */
+	readonly childAxis: 'horizontal' | 'vertical'
+	/**
+	 * Whether the drawer is currently open.
+	 */
+	open: boolean
+}
+
 export type PaletteToolbarItemByEditor<
 	TEditors extends Record<string, unknown>,
 	TTool extends string = string,
@@ -395,6 +468,45 @@ export interface PaletteEditorFlags {
 	readonly footprint?: PaletteEditorFootprint
 }
 
+// ── Surface Context ──
+
+/**
+ * Axis constraint for palette surface orientation.
+ */
+export type PaletteSurfaceAxis = 'horizontal' | 'vertical' | 'both'
+
+/**
+ * Context describing the surface where an item is rendered.
+ */
+export type PaletteSurfaceContext = {
+	readonly axis: PaletteSurfaceAxis
+	readonly region?: PaletteRegion
+}
+
+// ── Editor Capability ──
+
+/**
+ * Descriptor for an editor variant's capabilities.
+ *
+ * Used to compute which editor choices are valid for a given item and surface.
+ */
+export type PaletteEditorCapability = {
+	readonly id: string
+	readonly label: string
+	readonly families: readonly PaletteToolFamily[]
+	readonly supportedAxes?: PaletteSurfaceAxis
+	readonly compact?: boolean
+	readonly inline?: boolean
+	readonly requiresConfigSurface?: boolean
+	readonly hidden?: boolean
+	readonly accepts?: (props: {
+		readonly palette: Palette
+		readonly item: PaletteToolbarItem
+		readonly tool: PaletteTool | undefined
+		readonly surface: PaletteSurfaceContext
+	}) => boolean
+}
+
 /**
  * Context received by palette editors and configurators.
  */
@@ -419,6 +531,10 @@ export interface PaletteEditorContext<
 	 * The layout hints.
 	 */
 	readonly flags: PaletteEditorFlags
+	/**
+	 * The surface context (axis and region) for axis-aware configuration.
+	 */
+	readonly surface?: PaletteSurfaceContext
 }
 
 /**
@@ -549,7 +665,90 @@ export interface PaletteConfig<TSchema extends PaletteSchema = PaletteSchema> {
 		from: TTool,
 		value: TTool['value']
 	) => PaletteToolRun
+	/**
+	 * Optional editor capability descriptors for computing available editor choices.
+	 */
+	readonly editorCapabilities?: Record<string, PaletteEditorCapability>
 }
+
+// ── Configuration Descriptors ──
+
+/**
+ * Runtime reference to a configured toolbar item.
+ */
+export type PaletteConfiguredItemTarget = {
+	readonly toolbar: PaletteToolbar
+	readonly item: PaletteToolbarItem
+	readonly index: number
+	readonly region?: PaletteRegion
+}
+
+/**
+ * Structural actions available for a toolbar item.
+ */
+export type PaletteItemStructureSection = {
+	readonly moveBackward?: { readonly enabled: boolean }
+	readonly moveForward?: { readonly enabled: boolean }
+	readonly moveTargets?: readonly {
+		readonly toolbar: PaletteToolbar
+		readonly label: string
+	}[]
+	readonly removable?: boolean
+}
+
+/**
+ * Presentation choices available for a toolbar item.
+ */
+export type PaletteItemPresentationSection = {
+	readonly currentEditor?: string
+	readonly editorChoices: readonly {
+		readonly id: string
+		readonly label: string
+		readonly selected: boolean
+	}[]
+	readonly showText?: {
+		readonly value: boolean
+		readonly enabled: boolean
+	}
+	readonly compact?: {
+		readonly value: boolean
+		readonly enabled: boolean
+	}
+}
+
+/**
+ * Keyboard binding information for a toolbar item.
+ */
+export type PaletteItemBindingSection = {
+	readonly shortcut?: string
+	readonly editable?: boolean
+}
+
+/**
+ * Complete headless descriptor for an item's configuration surface.
+ *
+ * Computed by `describeItemConfiguration`. Adapters render this as UI;
+ * the palette owns the semantics.
+ */
+export type PaletteItemConfigurationDescriptor = {
+	readonly target: PaletteConfiguredItemTarget
+	readonly surface: PaletteSurfaceContext
+	readonly title: string
+	readonly subtitle?: string
+	readonly structure: PaletteItemStructureSection
+	readonly presentation: PaletteItemPresentationSection
+	readonly bindings?: PaletteItemBindingSection
+}
+
+/**
+ * Documented contract for palette item movement.
+ *
+ * Defines the semantic contract for how items move during drag operations:
+ * - `drop-only`: Items move only on drop release (no hover preview)
+ * - `preview-only`: Hover shows visual preview but does not commit
+ * - `commit`: Hover commits the move immediately (with optional revert)
+ */
+export type PaletteItemMoveContract = 'drop-only' | 'preview-only' | 'commit'
 
 export interface PaletteBase {
 	/**
@@ -635,6 +834,16 @@ export interface Palette<TSchema extends PaletteSchema = PaletteSchema> {
 		TTool extends PaletteToolOf<TSchema> | undefined,
 		TItem extends PaletteItem<TSchema>,
 	>(item: TItem, tool: TTool, scope: PaletteScope<TSchema>): JSX.Element | undefined
+	/**
+	 * Compute a headless configuration descriptor for a toolbar item.
+	 *
+	 * Adapters consume this descriptor to render item configuration UI.
+	 * The palette owns the semantics; adapters own the rendering.
+	 */
+	describeItemConfiguration(
+		target: PaletteConfiguredItemTarget,
+		surface: PaletteSurfaceContext
+	): PaletteItemConfigurationDescriptor
 	/**
 	 * Dispose of the palette instance.
 	 */
@@ -781,4 +990,54 @@ export interface PaletteDragging<TPalette extends Palette = Palette> {
 	 * The index of the track.
 	 */
 	trackIndex: number
+}
+
+/**
+ * Serialized palette layout for persistence.
+ *
+ * Unlike the runtime `PaletteBorders` which uses object identity and reactive arrays,
+ * this format uses stable IDs and plain data structures suitable for JSON serialization.
+ */
+export type SerializedPaletteLayout = {
+	/**
+	 * The serialization format version.
+	 */
+	readonly version: 1
+	/**
+	 * The border layout for each palette region.
+	 */
+	readonly borders: Record<
+		PaletteRegion,
+		readonly {
+			/**
+			 * The spacing value for this track.
+			 */
+			readonly space: number
+			/**
+			 * The toolbar items in this track.
+			 */
+			readonly toolbar: readonly {
+				/**
+				 * The tool spec (e.g., "toolId", "toolId|value", "toolId:action").
+				 */
+				readonly tool?: string
+				/**
+				 * The editor variant.
+				 */
+				readonly editor?: string
+				/**
+				 * Optional config payload.
+				 */
+				readonly config?: Record<string, unknown>
+			}[]
+		}[]
+	>
+	/**
+	 * Optional parking area for items not currently displayed.
+	 */
+	readonly parking?: readonly (readonly {
+		readonly tool?: string
+		readonly editor?: string
+		readonly config?: Record<string, unknown>
+	}[])[]
 }

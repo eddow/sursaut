@@ -9,10 +9,10 @@ import {
 	type PaletteSchema,
 	type PaletteScope,
 	type PaletteTool,
+	type PaletteToolbar,
 	type PaletteToolbarItem,
 	type PaletteTools,
 	palettes,
-	paletteToolFamily,
 	setPaletteCommandBoxInput,
 } from '@sursaut/ui/palette'
 import { reactive, unwrap } from 'mutts'
@@ -41,9 +41,15 @@ export type PicoPaletteEnumConfig = PicoPaletteItemConfigBase & {
 	keywords?: readonly string[]
 }
 
+export type PicoPaletteDrawerConfig = PicoPaletteItemConfigBase & {
+	open?: 'click' | 'hover' | 'press'
+	placement?: 'start' | 'center' | 'end'
+}
+
 export type PicoPaletteEditorConfigByVariant = {
 	button: PicoPaletteItemConfigBase
 	commandBox: PicoPaletteItemConfigBase
+	drawer: PicoPaletteDrawerConfig
 	flip: PicoPaletteEnumConfig
 	radio: PicoPaletteEnumConfig
 	select: PicoPaletteEnumConfig
@@ -118,6 +124,7 @@ type PicoPaletteInstance = NonNullable<PaletteScope<PicoPaletteSchema>['palette'
 const picoPaletteEditorLabels = {
 	button: 'Button',
 	commandBox: 'Command box',
+	drawer: 'Drawer',
 	flip: 'Flip',
 	radio: 'Radio',
 	select: 'Select',
@@ -228,33 +235,7 @@ function enumChoiceText(
 	return [entry.icon, entry.label ?? entry.value].filter(Boolean).join(' ')
 }
 
-function editorOptions(
-	item: PicoPaletteAnyItem,
-	tool: PaletteTool | undefined
-): readonly PicoPaletteEditorOption[] {
-	if (!item.tool) return [{ value: 'commandBox', label: picoPaletteEditorLabels.commandBox }]
-	if (!tool) return []
-	const family = paletteToolFamily(tool)
-	if (family === 'run')
-		return [
-			{ value: 'button', label: picoPaletteEditorLabels.button },
-			{ value: 'splitButton', label: picoPaletteEditorLabels.splitButton },
-		]
-	if (family === 'boolean') return [{ value: 'toggle', label: picoPaletteEditorLabels.toggle }]
-	if (family === 'enum')
-		return [
-			{ value: 'flip', label: picoPaletteEditorLabels.flip },
-			{ value: 'radio', label: picoPaletteEditorLabels.radio },
-			{ value: 'select', label: picoPaletteEditorLabels.select },
-			{ value: 'segmented', label: picoPaletteEditorLabels.segmented },
-			{ value: 'splitRadio', label: picoPaletteEditorLabels.splitRadio },
-		]
-	return [
-		{ value: 'slider', label: picoPaletteEditorLabels.slider },
-		{ value: 'stepper', label: picoPaletteEditorLabels.stepper },
-		{ value: 'stars', label: picoPaletteEditorLabels.stars },
-	]
-}
+// editorOptions replaced by palette.describeItemConfiguration().presentation.editorChoices
 
 function setConfigText(item: PicoPaletteAnyItem, key: 'label' | 'hint', value: string) {
 	const config = ensureItemConfig(item)
@@ -297,7 +278,17 @@ function ConfigRow(props: { label: string; description?: string; children?: JSX.
 	)
 }
 
-function BaseConfigurator(props: { item: PicoPaletteAnyItem; tool: PaletteTool | undefined }) {
+function BaseConfigurator(props: {
+	item: PicoPaletteAnyItem
+	tool: PaletteTool | undefined
+	scope: Record<string, unknown>
+}) {
+	const editorChoices =
+		(props.scope?.editorChoices as ReadonlyArray<{
+			id: string
+			label: string
+			selected: boolean
+		}>) ?? []
 	const meta = itemMeta(props.item)
 	return (
 		<div class="sursaut-palette-config-table">
@@ -328,10 +319,8 @@ function BaseConfigurator(props: { item: PicoPaletteAnyItem; tool: PaletteTool |
 							props.item.editor = value as PicoPaletteEditorVariant
 					}}
 				>
-					<for each={editorOptions(props.item, props.tool)}>
-						{(option: PicoPaletteEditorOption) => (
-							<option value={option.value}>{option.label}</option>
-						)}
+					<for each={editorChoices}>
+						{(option) => <option value={option.id}>{option.label}</option>}
 					</for>
 				</select>
 			</ConfigRow>
@@ -348,11 +337,15 @@ function BaseConfigurator(props: { item: PicoPaletteAnyItem; tool: PaletteTool |
 	)
 }
 
-function EnumConfigurator(props: { item: PicoPaletteAnyItem; tool: PicoPaletteEnumTool }) {
+function EnumConfigurator(props: {
+	item: PicoPaletteAnyItem
+	tool: PicoPaletteEnumTool
+	scope: Record<string, unknown>
+}) {
 	const config = enumConfig(props.item)
 	return (
 		<div class="sursaut-palette-config-stack">
-			<BaseConfigurator item={props.item} tool={props.tool} />
+			<BaseConfigurator item={props.item} tool={props.tool} scope={props.scope} />
 			<ConfigRow label="Choice display">
 				<select
 					value={choiceDisplay(props.item)}
@@ -496,30 +489,72 @@ export function PicoPaletteCommandBox(props: PicoPaletteCommandBoxProps) {
 				</div>
 			</div>
 			<div if={props.expanded} class="sursaut-palette-command-popover">
-				<for each={props.commandBox.results.slice(0, 6)}>
-					{(entry: { id: string; icon?: string; label: string; meta?: string; can?: boolean }) => (
-						<button
-							type="button"
-							class={
-								props.commandBox.selection.item?.id === entry.id ? 'primary' : 'contrast outline'
-							}
-							disabled={entry.can === false}
-							onClick={() => {
-								if (props.selectOnPick) {
-									props.commandBox.select(entry.id)
-									props.onEntryPick?.(entry.id)
-									return
-								}
-								props.commandBox.execute(entry.id)
-								props.onEscapeOrExecute?.()
-							}}
-						>
-							<span>{renderIcon(entry.icon)}</span>
-							<span>{entry.label}</span>
-							<span if={entry.meta}>{entry.meta}</span>
-						</button>
-					)}
-				</for>
+				<div
+					if={props.commandBox.suggestions.length > 0}
+					class="sursaut-palette-command-suggestions"
+				>
+					<for each={props.commandBox.suggestions}>
+						{(suggestion: { keyword: string }) => (
+							<button
+								type="button"
+								class="secondary outline"
+								onClick={() => {
+									props.commandBox.keywords.addToken(suggestion.keyword)
+									props.commandBox.input.value = ''
+									props.onSuggestionPick?.()
+								}}
+							>
+								{suggestion.keyword}
+							</button>
+						)}
+					</for>
+				</div>
+				<div class="sursaut-palette-command-results">
+					<div if={props.commandBox.results.length === 0} class="sursaut-palette-command-empty">
+						No matching commands
+					</div>
+					<for else each={props.commandBox.results}>
+						{(entry: {
+							id: string
+							icon?: string
+							label: string
+							meta?: string
+							can?: boolean
+						}) => (
+							<button
+								type="button"
+								class={[
+									'sursaut-palette-command-result',
+									props.commandBox.selection.item?.id === entry.id
+										? 'is-selected'
+										: 'contrast outline',
+								]}
+								draggable={edition.checked}
+								disabled={entry.can === false}
+								onClick={() => {
+									if (props.selectOnPick) {
+										props.commandBox.select(entry.id)
+										props.onEntryPick?.(entry.id)
+										return
+									}
+									props.commandBox.execute(entry.id)
+									props.onEscapeOrExecute?.()
+								}}
+							>
+								<span
+									if={edition.checked}
+									class="sursaut-palette-command-drag-handle"
+									aria-hidden="true"
+								>
+									⋮⋮
+								</span>
+								<span>{renderIcon(entry.icon)}</span>
+								<span>{entry.label}</span>
+								<span if={entry.meta}>{entry.meta}</span>
+							</button>
+						)}
+					</for>
+				</div>
 			</div>
 		</div>
 	)
@@ -604,6 +639,51 @@ function ButtonEditor(
 			{renderIcon(meta.icon)}
 			<span>{meta.label}</span>
 		</Button>
+	)
+}
+
+function DrawerEditor(
+	context: PaletteEditorContext<undefined, PicoPaletteAnyItem, PicoPaletteSchema>
+) {
+	const meta = itemMeta(context.item as PicoPaletteAnyItem)
+	const drawerItem = context.item as {
+		editor: 'drawer'
+		toolbar: PaletteToolbar
+		config?: PicoPaletteDrawerConfig
+	}
+	const state = reactive({ open: false })
+	const config = drawerItem.config ?? {}
+	const openTrigger = config.open ?? 'click'
+
+	const toggleOpen = () => {
+		state.open = !state.open
+	}
+
+	const chevronIcon = state.open ? '▼' : '▶'
+
+	return (
+		<div class="sursaut-palette-drawer-container">
+			<Button
+				variant={toneButtonVariant[meta.tone]}
+				outline={meta.tone !== 'accent'}
+				onClick={toggleOpen}
+				aria-expanded={state.open}
+				aria-haspopup="true"
+			>
+				{renderIcon(meta.icon)}
+				<span>{meta.label}</span>
+				<span class="sursaut-palette-drawer-chevron">{chevronIcon}</span>
+			</Button>
+			{state.open && (
+				<div class="sursaut-palette-drawer-popover">
+					{drawerItem.toolbar.map((childItem) => (
+						<div class="sursaut-palette-drawer-item">
+							<span>{childItem.editor}</span>
+						</div>
+					))}
+				</div>
+			)}
+		</div>
 	)
 }
 
@@ -795,7 +875,11 @@ export function createPicoPaletteEditors(): PaletteEditorRegistry<PicoPaletteSch
 			toggle: {
 				editor: ToggleEditor,
 				configure: (context) => (
-					<BaseConfigurator item={context.item as PicoPaletteAnyItem} tool={context.tool} />
+					<BaseConfigurator
+						item={context.item as PicoPaletteAnyItem}
+						tool={context.tool}
+						scope={context.scope as Record<string, unknown>}
+					/>
 				),
 				flags: { footprint: 'square' },
 			},
@@ -807,6 +891,7 @@ export function createPicoPaletteEditors(): PaletteEditorRegistry<PicoPaletteSch
 					<EnumConfigurator
 						item={context.item as PicoPaletteAnyItem}
 						tool={context.tool as PicoPaletteEnumTool}
+						scope={context.scope as Record<string, unknown>}
 					/>
 				),
 				flags: { footprint: 'square' },
@@ -817,6 +902,7 @@ export function createPicoPaletteEditors(): PaletteEditorRegistry<PicoPaletteSch
 					<EnumConfigurator
 						item={context.item as PicoPaletteAnyItem}
 						tool={context.tool as PicoPaletteEnumTool}
+						scope={context.scope as Record<string, unknown>}
 					/>
 				),
 				flags: { footprint: 'free' },
@@ -827,6 +913,7 @@ export function createPicoPaletteEditors(): PaletteEditorRegistry<PicoPaletteSch
 					<EnumConfigurator
 						item={context.item as PicoPaletteAnyItem}
 						tool={context.tool as PicoPaletteEnumTool}
+						scope={context.scope as Record<string, unknown>}
 					/>
 				),
 				flags: { footprint: 'horizontal' },
@@ -837,6 +924,7 @@ export function createPicoPaletteEditors(): PaletteEditorRegistry<PicoPaletteSch
 					<EnumConfigurator
 						item={context.item as PicoPaletteAnyItem}
 						tool={context.tool as PicoPaletteEnumTool}
+						scope={context.scope as Record<string, unknown>}
 					/>
 				),
 				flags: { footprint: 'free' },
@@ -847,6 +935,7 @@ export function createPicoPaletteEditors(): PaletteEditorRegistry<PicoPaletteSch
 					<EnumConfigurator
 						item={context.item as PicoPaletteAnyItem}
 						tool={context.tool as PicoPaletteEnumTool}
+						scope={context.scope as Record<string, unknown>}
 					/>
 				),
 				flags: { footprint: 'free' },
@@ -856,21 +945,33 @@ export function createPicoPaletteEditors(): PaletteEditorRegistry<PicoPaletteSch
 			slider: {
 				editor: SliderEditor,
 				configure: (context) => (
-					<BaseConfigurator item={context.item as PicoPaletteAnyItem} tool={context.tool} />
+					<BaseConfigurator
+						item={context.item as PicoPaletteAnyItem}
+						tool={context.tool}
+						scope={context.scope as Record<string, unknown>}
+					/>
 				),
 				flags: { footprint: 'horizontal' },
 			},
 			stepper: {
 				editor: StepperEditor,
 				configure: (context) => (
-					<BaseConfigurator item={context.item as PicoPaletteAnyItem} tool={context.tool} />
+					<BaseConfigurator
+						item={context.item as PicoPaletteAnyItem}
+						tool={context.tool}
+						scope={context.scope as Record<string, unknown>}
+					/>
 				),
 				flags: { footprint: 'free' },
 			},
 			stars: {
 				editor: StarsEditor,
 				configure: (context) => (
-					<BaseConfigurator item={context.item as PicoPaletteAnyItem} tool={context.tool} />
+					<BaseConfigurator
+						item={context.item as PicoPaletteAnyItem}
+						tool={context.tool}
+						scope={context.scope as Record<string, unknown>}
+					/>
 				),
 				flags: { footprint: 'free' },
 			},
@@ -879,14 +980,22 @@ export function createPicoPaletteEditors(): PaletteEditorRegistry<PicoPaletteSch
 			button: {
 				editor: ButtonEditor,
 				configure: (context) => (
-					<BaseConfigurator item={context.item as PicoPaletteAnyItem} tool={context.tool} />
+					<BaseConfigurator
+						item={context.item as PicoPaletteAnyItem}
+						tool={context.tool}
+						scope={context.scope as Record<string, unknown>}
+					/>
 				),
 				flags: { footprint: 'horizontal' },
 			},
 			splitButton: {
 				editor: SplitButtonEditor,
 				configure: (context) => (
-					<BaseConfigurator item={context.item as PicoPaletteAnyItem} tool={context.tool} />
+					<BaseConfigurator
+						item={context.item as PicoPaletteAnyItem}
+						tool={context.tool}
+						scope={context.scope as Record<string, unknown>}
+					/>
 				),
 				flags: { footprint: 'free' },
 			},
@@ -895,7 +1004,22 @@ export function createPicoPaletteEditors(): PaletteEditorRegistry<PicoPaletteSch
 			commandBox: {
 				editor: CommandBoxEditor,
 				configure: (context) => (
-					<BaseConfigurator item={context.item as PicoPaletteAnyItem} tool={undefined} />
+					<BaseConfigurator
+						item={context.item as PicoPaletteAnyItem}
+						tool={undefined}
+						scope={context.scope as Record<string, unknown>}
+					/>
+				),
+				flags: { footprint: 'horizontal' },
+			},
+			drawer: {
+				editor: DrawerEditor,
+				configure: (context) => (
+					<BaseConfigurator
+						item={context.item as PicoPaletteAnyItem}
+						tool={undefined}
+						scope={context.scope as Record<string, unknown>}
+					/>
 				),
 				flags: { footprint: 'horizontal' },
 			},
@@ -918,6 +1042,7 @@ export const picoPalettePreset = createPicoPalettePreset()
 export const picoPaletteEditorSpecs = {
 	button: picoPaletteEditors.run?.button,
 	commandBox: picoPaletteEditors.item?.commandBox,
+	drawer: picoPaletteEditors.item?.drawer,
 	flip: picoPaletteEditors.enum?.flip,
 	radio: picoPaletteEditors.enum?.radio,
 	select: picoPaletteEditors.enum?.select,

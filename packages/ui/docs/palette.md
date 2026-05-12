@@ -13,18 +13,27 @@ It is **not** a small collection of isolated models anymore. The current API is 
 
 ```ts
 import {
+	beginPaletteCatalogInsertDrag,
 	createPaletteKeys,
 	Ide,
+	isEditing,
+	notifyPaletteCatalogNativeDragStarted,
 	Parking,
 	Palette,
-	Toolbar,
-	ToolbarBorder,
-	ToolbarTrack,
 	paletteAddItemEntries,
+	paletteCatalogEntries,
 	paletteCommandBoxModel,
 	paletteCommandEntries,
 	paletteDerivedVariants,
 	paletteEnumSubsetValues,
+	palettes,
+	paletteToolbarItemFromCatalogPayload,
+	PALETTE_CATALOG_DRAG_MIME,
+	parsePaletteCatalogDragPayload,
+	serializePaletteCatalogDragPayload,
+	Toolbar,
+	ToolbarBorder,
+	ToolbarTrack,
 	type PaletteConfig,
 	type PaletteItem,
 	type PaletteSchema,
@@ -163,18 +172,96 @@ The context passed to `editor` and `configure` contains:
 - `tool`
 - `scope`
 - `flags`
+- `surface` — the axis/region context for axis-aware configuration
 
 At runtime you can also call:
 
 - `palette.resolveEditor(item, tool)`
 - `palette.renderEditor(item, tool, scope)`
 - `palette.renderConfigurator(item, tool, scope)`
+- `palette.describeItemConfiguration(target, surface)` — compute a headless configuration descriptor
+
+The same helpers are re-exported as:
 
 The same helpers are re-exported as:
 
 - `resolvePaletteEditor(...)`
 - `renderPaletteEditor(...)`
 - `renderPaletteConfigurator(...)`
+
+### Supplying adapter editor presets
+
+Adapters provide pre-built editor registries and defaults. For example, the Pico adapter exports:
+
+```ts
+import { picoPalettePreset } from '@sursaut/adapter-pico'
+
+const palette = new Palette({
+	tools: { ... },
+	keys: createPaletteKeys({ ... }),
+	...picoPalettePreset, // spreads `editors` and `editorDefaults`
+})
+```
+
+`picoPalettePreset` is typed as `Pick<PaletteConfig, 'editors' | 'editorDefaults'>` and provides:
+
+- `editors`: a complete `PaletteEditorRegistry` with Pico-styled editor components for every tool family (`boolean`, `enum`, `number`, `run`, `item`)
+- `editorDefaults`: the default editor variant for each family (`{ boolean: 'toggle', enum: 'select', number: 'slider', run: 'button' }`)
+
+Adapters can also export individual pieces:
+
+```ts
+import { picoPaletteEditors } from '@sursaut/adapter-pico'
+// picoPaletteEditors is the full PaletteEditorRegistry
+```
+
+If you are building a custom adapter, follow the same pattern: provide a `PaletteEditorRegistry` keyed by tool family and variant name, with each entry containing an `editor` render function, an optional `configure` configurator function, and optional `flags`.
+
+### Item configuration descriptor
+
+The palette exports a headless function that computes a `PaletteItemConfigurationDescriptor` — a structured summary of everything a configurator UI needs to render. Adapters consume this descriptor to build configuration panels.
+
+```ts
+const desc = palette.describeItemConfiguration(
+    { item, toolbar, index, region },
+    { axis: 'horizontal' }
+)
+```
+
+The descriptor contains:
+
+- **`title`** / **`subtitle`** — derived from the item's tool spec and config label
+- **`structure`** — structural actions (`moveBackward`, `moveForward`, `removable`) based on the item's position in its toolbar
+- **`presentation`** — editor variant choices (`editorChoices`), filtered by the item's tool family and the current surface axis; also `showText` and `compact` toggles
+- **`bindings`** — optional keyboard shortcut information
+
+Editor choices are computed from `PaletteConfig.editorCapabilities` (if supplied) or the built-in `paletteDefaultEditorCapabilities` registry:
+
+```ts
+import { paletteDefaultEditorCapabilities } from '@sursaut/ui/palette'
+// 12 built-in capability descriptors: button, splitButton, toggle, flip,
+// radio, select, segmented, splitRadio, slider, stepper, stars, commandBox
+```
+
+Each capability declares which tool `families` it supports and which `supportedAxes` are valid. Capabilities whose families don't match or whose axis is incompatible are excluded from `editorChoices`.
+
+To supply a custom capability set:
+
+```ts
+const palette = new Palette({
+    tools,
+    keys,
+    editorCapabilities: {
+        ...paletteDefaultEditorCapabilities,
+        myCustomVariant: {
+            id: 'myCustomVariant',
+            label: 'Custom',
+            families: ['enum'],
+            supportedAxes: 'horizontal',
+        },
+    },
+})
+```
 
 ## Layout components
 
@@ -191,10 +278,30 @@ The `@sursaut/ui/palette` entry exports headless palette layout components:
 `Ide` mounts the four palette borders around a center area.
 
 ```tsx
+const top: PaletteToolbarItem[] = [
+	{ tool: 'command', editor: 'button' },
+	{ tool: 'notifications', editor: 'toggle' },
+	{ tool: 'theme', editor: 'select' },
+]
+
+// config is a named variable so it can be reactive and serializable.
+// Wrap with reactive() in real apps to enable edit-mode mutation and
+// localStorage persistence.
+const config = {
+	top: [[{ space: 1, toolbar: top }]],
+	left: [],
+	right: [],
+	bottom: [],
+}
+
 <Ide palette={palette} config={config}>
-	<div>Application content</div>
+	<main>Application content</main>
 </Ide>
 ```
+
+`IdeProps.config` expects an `IdeConfig`: an object with four optional `PaletteBorder` entries. A `PaletteBorder` is a stack of tracks (`PaletteTrack[]`), and each track is an array of toolbar slots. The double-nested array `top: [[{ space: 1, toolbar: top }]]` shows one track containing one toolbar slot.
+
+The `config` variable is intentionally a standalone value: wrap it with `reactive()` to make the layout editable, and serialize it for `localStorage` persistence. All four regions (`top`, `right`, `bottom`, `left`) are optional — omit any region you don't need.
 
 `IdeProps` includes passthrough element props for the root, center, borders, tracks, spaces, and toolbars.
 
@@ -230,7 +337,23 @@ Use it when:
 
 `Parking` renders parked toolbars outside the main borders.
 
-Use it for temporary storage, presets, or side staging areas while editing toolbars.
+It is used for temporary toolbar storage during edit mode. Think of it as a staging area where toolbars can be held before being placed into a border, or where toolbars removed from a border can be temporarily stored instead of being deleted.
+
+Minimal usage:
+
+```tsx
+<Parking
+	toolbars={parkedToolbars}
+	el:class="palette-parking-area"
+	space:class="palette-drop-zone"
+	toolbar:class="palette-parking-toolbar"
+/>
+```
+
+- `toolbars` accepts an array of `PaletteToolbar` arrays (the same shape as the toolbar slots inside tracks)
+- `el`, `space`, and `toolbar` are passthrough class/element props for styling
+
+In edit mode, toolbars can be dragged from parking into a border region, or from a border into parking for temporary removal.
 
 ## Which layout component should I use?
 
@@ -282,6 +405,22 @@ For removable chips there is:
 
 - `handlePaletteCommandChipKeydown({ commandBox, event, token, type })`
 
+### Command entries vs. add-item entries vs. catalogue entries
+
+The palette exports three related but distinct helpers for building entry lists:
+
+| Helper | Purpose | Used in |
+|--------|---------|---------|
+| `paletteCommandEntries` | Build executable command entries for search-and-run workflows | Command box execution |
+| `paletteAddItemEntries` | Build source entries for the add-item insertion flow | Add-to-toolbar panel |
+| `paletteCatalogEntries` | Build entries for the drag-from-catalogue flow | Catalogue sidebar / drag source |
+
+`paletteCommandEntries` derives entries for runnable tools, boolean setters, enum setters, and numeric actions. These entries are fed to `paletteCommandBoxModel` for keyboard search and execution.
+
+`paletteAddItemEntries` lists tools and editor-only items that can be inserted into a toolbar. Each entry can be expanded into derived variants via `paletteDerivedVariants`.
+
+`paletteCatalogEntries` wraps `paletteAddItemEntries` output into draggable catalogue entries with MIME-typed payloads (see "Catalogue drag payloads" below).
+
 ## Add-item flow helpers
 
 The add-item flow is also headless and split into composable helpers.
@@ -305,7 +444,41 @@ Expands one source entry into insertable variants, for example:
 
 Filters enum values by keyword matches using the same keyword expansion used by the command box.
 
-This is useful when one editor variant should expose only a subset of an enum tool’s values.
+This is useful when one editor variant should expose only a subset of an enum tool's values.
+
+### Catalogue drag payloads
+
+The add-item catalogue supports native HTML5 drag and drop. When a catalogue entry is dragged, it serializes a MIME-typed payload:
+
+```ts
+import {
+	PALETTE_CATALOG_DRAG_MIME,
+	serializePaletteCatalogDragPayload,
+	parsePaletteCatalogDragPayload,
+	paletteToolbarItemFromCatalogPayload,
+} from '@sursaut/ui/palette'
+```
+
+The flow:
+
+1. **Serialize** — `serializePaletteCatalogDragPayload(variant)` creates a JSON string containing enough information to reconstruct a toolbar item.
+2. **Drag** — The serialized payload is attached to the `DataTransfer` object under `PALETTE_CATALOG_DRAG_MIME` (`"application/x-sursaut-palette-catalog"`).
+3. **Parse** — On the drop side, `parsePaletteCatalogDragPayload(dataTransfer)` reads the payload back.
+4. **Convert** — `paletteToolbarItemFromCatalogPayload(palette, payload)` turns the parsed payload into a proper `PaletteToolbarItem` ready for insertion.
+
+For the catalogue native drag start, call:
+
+```ts
+notifyPaletteCatalogNativeDragStarted(palettes, palette)
+```
+
+This marks the shared `palettes` state so that drop zones know a catalogue drag is in progress, distinct from an internal toolbar-item drag.
+
+For catalogue insert drag (creating ephemeral source tracks during the drag), use:
+
+```ts
+beginPaletteCatalogInsertDrag(palettes, payload, palette)
+```
 
 ## Keyboard bindings
 
@@ -332,6 +505,34 @@ It may contain:
 - `inspecting`
 
 Use `isEditing(palette)` to check whether a palette is the currently active editable palette.
+
+### Entering and exiting edit mode
+
+The shared reactive `palettes` object owns the editing state:
+
+```ts
+// Enter edit mode
+palettes.editing = myPalette
+
+// Exit edit mode
+palettes.editing = undefined
+```
+
+Only one palette can be in edit mode at a time. Setting `palettes.editing` clears any previous editing palette.
+
+A palette's editing state is **guarded** by its config: `palette.editing` is `true` only when both `config.editable !== false` **and** `palettes.editing === palette`.
+
+In practice, an edit toggle button typically alternates:
+
+```tsx
+<button onClick={() => {
+	palettes.editing = isEditing(myPalette) ? undefined : myPalette
+}}>
+	{isEditing(myPalette) ? 'Done' : 'Edit'}
+</button>
+```
+
+When edit mode is active, toolbar items become draggable, item insertion zones appear, and clicking a toolbar item opens its configuration panel (see "Editors and configurators" above).
 
 ## Notes
 

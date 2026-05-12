@@ -12,3 +12,4 @@ sandbox/
 .vscode
 .git/hooks/
 .generated-types/
+plans

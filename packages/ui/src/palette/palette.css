@@ -276,3 +276,13 @@
 	background: rgba(29, 78, 216, 0.9);
 	color: #eff6ff;
 }
+
+/* ── Axis-Aware Orthogonal Toolbar Sizing ── */
+
+.toolbar-border.palette-horizontal > .toolbar-track > .toolbar-track-slot > .toolbar {
+	min-block-size: 2.5rem;
+}
+
+.toolbar-border.palette-vertical > .toolbar-track > .toolbar-track-slot > .toolbar {
+	min-inline-size: 2.5rem;
+}

@@ -4,19 +4,27 @@ import type { IdeProps, ToolbarProps } from './components'
 import { Ide as PaletteIdeComponent, Toolbar as PaletteToolbarComponent } from './components'
 import type {
 	PaletteBase,
+	PaletteBorder,
+	PaletteBorders,
 	PaletteConfig,
+	PaletteConfiguredItemTarget,
 	PaletteDragging,
 	PaletteEditableTool,
 	PaletteEditableToolByFamily,
 	PaletteEditableToolOf,
+	PaletteEditorCapability,
 	PaletteEditorSpec,
 	Palette as PaletteInstance,
 	PaletteItem,
+	PaletteItemBindingSection,
+	PaletteItemConfigurationDescriptor,
 	PaletteOf,
 	PaletteRegion,
 	PaletteSchema,
 	PaletteScope,
+	PaletteSurfaceContext,
 	PaletteTool,
+	PaletteToolbar,
 	PaletteToolbarItem,
 	PaletteToolEdit,
 	PaletteToolEnumValue,
@@ -245,7 +253,11 @@ export class Palette<TSchema extends PaletteSchema = PaletteSchema>
 	resolveEditor<
 		TTool extends PaletteToolOf<TSchema> | undefined,
 		TItem extends PaletteItem<TSchema>,
-	>(item: TItem, tool: TTool): PaletteEditorSpec<TTool, TItem, TSchema> | undefined {
+	>(
+		item: TItem,
+		tool: TTool,
+		surface?: PaletteSurfaceContext
+	): PaletteEditorSpec<TTool, TItem, TSchema> | undefined {
 		if (!hasPaletteItemTool(item)) {
 			const spec = this.editors?.item?.[item.editor]
 			if (!spec) throw new PaletteError(`Unknown palette item editor "${item.editor}"`)
@@ -255,9 +267,67 @@ export class Palette<TSchema extends PaletteSchema = PaletteSchema>
 		const family = paletteToolFamily(tool) as PaletteToolFamily<TSchema['tools']>
 		const registry = this.editors?.[family]
 		if (!registry) return undefined
-		const variant = item.editor ?? this.editorDefaults?.[family]
+		let variant = item.editor ?? this.editorDefaults?.[family]
 		if (!variant)
 			throw new PaletteError(`No editor variant configured for palette tool "${item.tool}"`)
+
+		// Validate against capabilities if surface is provided
+		if (surface) {
+			const caps = this.config.editorCapabilities ?? paletteDefaultEditorCapabilities
+			const cap = caps?.[variant]
+			if (cap) {
+				const toolObj = hasPaletteItemTool(item) ? this.tool(item.tool) : undefined
+				let needsFallback = false
+
+				// Check family
+				if (!cap.families.includes(family as PaletteToolFamily)) {
+					needsFallback = true
+				}
+				// Check supportedAxes
+				else if (
+					cap.supportedAxes &&
+					cap.supportedAxes !== 'both' &&
+					cap.supportedAxes !== surface.axis
+				) {
+					needsFallback = true
+				}
+				// Check accepts callback
+				else if (
+					cap.accepts &&
+					!cap.accepts({
+						palette: this as unknown as Palette<PaletteSchema>,
+						item,
+						tool: toolObj as PaletteTool | undefined,
+						surface,
+					})
+				) {
+					needsFallback = true
+				}
+
+				// Fall back to first compact capability for the same family
+				if (needsFallback) {
+					const fallbackCap = Object.values(caps).find(
+						(c) =>
+							c.compact &&
+							c.families.includes(family as PaletteToolFamily) &&
+							(!c.supportedAxes ||
+								c.supportedAxes === 'both' ||
+								c.supportedAxes === surface.axis) &&
+							(!c.accepts ||
+								c.accepts({
+									palette: this as unknown as Palette<PaletteSchema>,
+									item,
+									tool: toolObj as PaletteTool | undefined,
+									surface,
+								}))
+					)
+					if (fallbackCap) {
+						variant = fallbackCap.id
+					}
+				}
+			}
+		}
+
 		const spec = registry[variant]
 		if (!spec)
 			throw new PaletteError(
@@ -273,8 +343,12 @@ export class Palette<TSchema extends PaletteSchema = PaletteSchema>
 		TTool extends PaletteToolOf<TSchema> | undefined,
 		TItem extends PaletteItem<TSchema>,
 	>(item: TItem, tool: TTool, scope: PaletteScope<TSchema>): JSX.Element {
-		const spec = this.resolveEditor(item, tool)
-		if (spec) return spec.editor({ item, tool, scope, flags: spec.flags ?? {} })
+		const surface: PaletteSurfaceContext = {
+			axis: scope.region === 'left' || scope.region === 'right' ? 'vertical' : 'horizontal',
+			region: scope.region,
+		}
+		const spec = this.resolveEditor(item, tool, surface)
+		if (spec) return spec.editor({ item, tool, scope, flags: spec.flags ?? {}, surface })
 		if (this.editor) return this.editor(item, tool, scope)
 		if (!hasPaletteItemTool(item))
 			throw new PaletteError(`No editor available for palette item "${item.editor}"`)
@@ -288,10 +362,88 @@ export class Palette<TSchema extends PaletteSchema = PaletteSchema>
 		TTool extends PaletteToolOf<TSchema> | undefined,
 		TItem extends PaletteItem<TSchema>,
 	>(item: TItem, tool: TTool, scope: PaletteScope<TSchema>): JSX.Element | undefined {
-		const spec = this.resolveEditor(item, tool)
-		if (spec?.configure) return spec.configure({ item, tool, scope, flags: spec.flags ?? {} })
-		if (this.configurator) return this.configurator(item, tool, scope)
+		const surface: PaletteSurfaceContext = {
+			axis: scope.region === 'left' || scope.region === 'right' ? 'vertical' : 'horizontal',
+			region: scope.region,
+		}
+		const spec = this.resolveEditor(item, tool, surface)
+		// Compute editor choices and inject into scope for adapters
+		const desc = this.describeItemConfiguration(
+			{ item, toolbar: [item], index: 0, region: scope.region },
+			surface
+		)
+		const augmentedScope = { ...scope, editorChoices: desc.presentation.editorChoices }
+		if (spec?.configure)
+			return spec.configure({ item, tool, scope: augmentedScope, flags: spec.flags ?? {}, surface })
+		if (this.configurator) return this.configurator(item, tool, augmentedScope)
 		return undefined
+	}
+
+	/**
+	 * Compute a headless configuration descriptor for a toolbar item.
+	 *
+	 * Adapters consume this descriptor to render item configuration UI.
+	 * The palette owns the semantics; adapters own the rendering.
+	 */
+	describeItemConfiguration(
+		target: PaletteConfiguredItemTarget,
+		surface: PaletteSurfaceContext
+	): PaletteItemConfigurationDescriptor {
+		const { item, toolbar, index, region } = target
+		const tool = hasPaletteItemTool(item) ? this.tool(item.tool) : undefined
+		const displayRegion = region ?? surface.region
+		const toolFamily = tool ? paletteToolFamily(tool) : 'item'
+		const editorChoices: { id: string; label: string; selected: boolean }[] = []
+		const descriptor: PaletteItemConfigurationDescriptor = {
+			target,
+			surface: { axis: surface.axis, region: displayRegion },
+			title:
+				((item.config as Record<string, unknown> | undefined)?.label as string | undefined) ??
+				(hasPaletteItemTool(item) ? item.tool : item.editor),
+			subtitle: hasPaletteItemTool(item) ? item.tool : undefined,
+			structure: {
+				moveBackward: { enabled: index > 0 },
+				moveForward: { enabled: index < toolbar.length - 1 },
+				removable: true,
+			},
+			presentation: {
+				currentEditor: item.editor,
+				editorChoices,
+			},
+		}
+
+		// Compute editor choices from capabilities
+		const caps = this.config.editorCapabilities ?? paletteDefaultEditorCapabilities
+		if (toolFamily) {
+			const family = toolFamily as string
+			for (const cap of Object.values(caps)) {
+				if (cap.hidden) continue
+				if (!cap.families.includes(family as PaletteToolFamily)) continue
+				if (cap.supportedAxes && cap.supportedAxes !== 'both' && cap.supportedAxes !== surface.axis)
+					continue
+				if (
+					cap.accepts &&
+					!cap.accepts({ palette: this as unknown as Palette<PaletteSchema>, item, tool, surface })
+				)
+					continue
+				editorChoices.push({
+					id: cap.id,
+					label: cap.label,
+					selected: cap.id === item.editor,
+				})
+			}
+		}
+
+		// Bindings placeholder
+		if (hasPaletteItemTool(item)) {
+			const strokes = this.keys.findByTool(item.tool)
+			if (strokes.length > 0) {
+				const descriptorMutable = descriptor as { bindings?: PaletteItemBindingSection }
+				descriptorMutable.bindings = { shortcut: strokes[0] }
+			}
+		}
+
+		return descriptor
 	}
 
 	/**
@@ -321,6 +473,63 @@ export class Palette<TSchema extends PaletteSchema = PaletteSchema>
 	dispose() {
 		this.#disposeStyle()
 	}
+}
+
+/**
+ * Built-in editor capability descriptors.
+ *
+ * Adapters may supply their own via `PaletteConfig.editorCapabilities`
+ * to override or extend these defaults.
+ */
+export const paletteDefaultEditorCapabilities: Record<string, PaletteEditorCapability> = {
+	button: { id: 'button', label: 'Button', families: ['run'], supportedAxes: 'both' },
+	splitButton: {
+		id: 'splitButton',
+		label: 'Split button',
+		families: ['run'],
+		supportedAxes: 'both',
+	},
+	toggle: {
+		id: 'toggle',
+		label: 'Toggle',
+		families: ['boolean'],
+		supportedAxes: 'both',
+		compact: true,
+	},
+	flip: { id: 'flip', label: 'Flip', families: ['enum'], supportedAxes: 'both', compact: true },
+	radio: { id: 'radio', label: 'Radio', families: ['enum'], supportedAxes: 'both' },
+	select: {
+		id: 'select',
+		label: 'Select',
+		families: ['enum'],
+		supportedAxes: 'both',
+		compact: true,
+	},
+	segmented: {
+		id: 'segmented',
+		label: 'Segmented',
+		families: ['enum'],
+		supportedAxes: 'both',
+		compact: true,
+	},
+	splitRadio: { id: 'splitRadio', label: 'Split radio', families: ['enum'], supportedAxes: 'both' },
+	slider: { id: 'slider', label: 'Slider', families: ['number'], supportedAxes: 'horizontal' },
+	stepper: {
+		id: 'stepper',
+		label: 'Stepper',
+		families: ['number'],
+		supportedAxes: 'both',
+		compact: true,
+	},
+	stars: {
+		id: 'stars',
+		label: 'Stars',
+		families: ['number'],
+		supportedAxes: 'both',
+		compact: true,
+	},
+	commandBox: { id: 'commandBox', label: 'Command box', families: ['item'], supportedAxes: 'both' },
+	drawer: { id: 'drawer', label: 'Drawer', families: ['item'], supportedAxes: 'both' },
 }
 
 const returnValues = new WeakMap<PaletteToolEdit<unknown>, unknown>()
@@ -593,4 +802,327 @@ export function notifyPaletteCatalogNativeDragStarted(palette: PaletteBase): voi
  */
 export function isEditing(palette: PaletteBase | undefined): boolean {
 	return palette instanceof Palette ? palette.editing : unwrap(palettes.editing) === unwrap(palette)
+}
+
+/**
+ * Resolve where an item would move within or across toolbars given a direction.
+ *
+ * This is a simple placement target resolution function that determines the target
+ * location for an item when moving forward or backward. It handles:
+ * - Same-toolbar moves (within the same region and track)
+ * - Cross-toolbar moves (between tracks within the same region)
+ * - Cross-region moves (between different docking regions)
+ *
+ * @param borders - The full border layout containing all regions and their toolbars
+ * @param item - The toolbar item being moved (used for reference, not modified)
+ * @param source - The current location of the item (region and track index)
+ * @param direction - The direction of movement ('forward' or 'backward')
+ * @returns The target location (region and track index), or null if no valid target exists
+ *
+ * @example
+ * ```ts
+ * const target = resolveItemPlacementTarget(
+ *   borders,
+ *   item,
+ *   { region: 'top', trackIndex: 0 },
+ *   'forward'
+ * )
+ * if (target) {
+ *   // Move item to target.region, target.trackIndex
+ * }
+ * ```
+ */
+export function resolveItemPlacementTarget(
+	borders: PaletteBorders,
+	_item: PaletteToolbarItem,
+	source: { region: PaletteRegion; trackIndex: number },
+	direction: 'forward' | 'backward'
+): { region: PaletteRegion; trackIndex: number } | null {
+	const regions: PaletteRegion[] = ['top', 'right', 'bottom', 'left']
+	const sourceRegionIndex = regions.indexOf(source.region)
+
+	if (sourceRegionIndex === -1) {
+		return null
+	}
+
+	// Flatten all tracks across all regions into a linear sequence
+	const allTracks: { region: PaletteRegion; trackIndex: number; toolbar: PaletteToolbar }[] = []
+	for (const region of regions) {
+		const border = borders[region]
+		for (let trackIndex = 0; trackIndex < border.length; trackIndex++) {
+			const track = border[trackIndex]
+			// PaletteTrack is an array of { space, toolbar } objects
+			// We use the first toolbar entry for this track
+			const toolbar = track[0]?.toolbar ?? []
+			allTracks.push({ region, trackIndex, toolbar })
+		}
+	}
+
+	// Find the current track index in the flattened sequence
+	const currentTrackIndex = allTracks.findIndex(
+		(t) => t.region === source.region && t.trackIndex === source.trackIndex
+	)
+
+	if (currentTrackIndex === -1) {
+		return null
+	}
+
+	// Calculate target track index based on direction
+	let targetTrackIndex: number
+	if (direction === 'forward') {
+		targetTrackIndex = currentTrackIndex + 1
+	} else {
+		targetTrackIndex = currentTrackIndex - 1
+	}
+
+	// Check if target is valid
+	if (targetTrackIndex < 0 || targetTrackIndex >= allTracks.length) {
+		return null
+	}
+
+	const targetTrack = allTracks[targetTrackIndex]
+	return {
+		region: targetTrack.region,
+		trackIndex: targetTrack.trackIndex,
+	}
+}
+
+// ── Layout Serialization ──
+
+import type { SerializedPaletteLayout } from './types'
+
+/**
+ * Serialize a palette border layout to a stable, JSON-serializable format.
+ *
+ * This function strips object identity from reactive arrays and converts them
+ * to plain arrays, preserving only serializable primitives (strings, numbers,
+ * booleans, plain objects).
+ *
+ * @param config - The palette border layout to serialize
+ * @returns A serialized layout suitable for JSON persistence
+ */
+export function serializePaletteLayout(config: PaletteBorders): SerializedPaletteLayout {
+	const regions: PaletteRegion[] = ['top', 'right', 'bottom', 'left']
+
+	const borders: Record<PaletteRegion, SerializedPaletteLayout['borders'][PaletteRegion]> =
+		{} as any
+
+	for (const region of regions) {
+		// PaletteBorder is PaletteTrack[], and PaletteTrack is { space, toolbar }[]
+		// So config[region] is a 2D array where each element is { space, toolbar }[]
+		borders[region] = config[region].flatMap((track) => {
+			return track.map((trackElement) => ({
+				space: trackElement.space,
+				toolbar: trackElement.toolbar.map((item) => {
+					const serialized: {
+						tool?: string
+						editor?: string
+						config?: Record<string, unknown>
+					} = {}
+
+					if ('tool' in item && item.tool !== undefined) {
+						serialized.tool = item.tool
+					}
+					if ('editor' in item && item.editor !== undefined) {
+						serialized.editor = item.editor
+					}
+					if ('config' in item && item.config !== undefined) {
+						serialized.config = item.config as Record<string, unknown>
+					}
+
+					return serialized
+				}),
+			}))
+		}) as SerializedPaletteLayout['borders'][PaletteRegion]
+	}
+
+	return {
+		version: 1,
+		borders,
+	}
+}
+
+/**
+ * Validate that an unknown value is a properly structured SerializedPaletteLayout.
+ *
+ * This function performs runtime validation to ensure the layout has:
+ * - The correct version (1)
+ * - Valid palette regions
+ * - Properly shaped toolbar items
+ *
+ * @param layout - The value to validate
+ * @returns True if the value is a valid SerializedPaletteLayout
+ */
+export function validatePaletteLayout(layout: unknown): layout is SerializedPaletteLayout {
+	if (typeof layout !== 'object' || layout === null) {
+		return false
+	}
+
+	const obj = layout as Record<string, unknown>
+
+	// Check version
+	if (obj.version !== 1) {
+		return false
+	}
+
+	// Check borders
+	if (typeof obj.borders !== 'object' || obj.borders === null) {
+		return false
+	}
+
+	const borders = obj.borders as Record<string, unknown>
+	const regions: PaletteRegion[] = ['top', 'right', 'bottom', 'left']
+
+	for (const region of regions) {
+		const border = borders[region]
+		if (!Array.isArray(border)) {
+			return false
+		}
+
+		for (const track of border) {
+			if (typeof track !== 'object' || track === null) {
+				return false
+			}
+
+			const trackObj = track as Record<string, unknown>
+
+			// Check space
+			if (typeof trackObj.space !== 'number') {
+				return false
+			}
+
+			// Check toolbar
+			if (!Array.isArray(trackObj.toolbar)) {
+				return false
+			}
+
+			for (const item of trackObj.toolbar) {
+				if (typeof item !== 'object' || item === null) {
+					return false
+				}
+
+				const itemObj = item as Record<string, unknown>
+
+				// Validate tool (optional string)
+				if (itemObj.tool !== undefined && typeof itemObj.tool !== 'string') {
+					return false
+				}
+
+				// Validate editor (optional string)
+				if (itemObj.editor !== undefined && typeof itemObj.editor !== 'string') {
+					return false
+				}
+
+				// Validate config (optional plain object)
+				if (itemObj.config !== undefined) {
+					if (typeof itemObj.config !== 'object' || itemObj.config === null) {
+						return false
+					}
+					// Ensure config is a plain object (not array, not null)
+					if (Array.isArray(itemObj.config)) {
+						return false
+					}
+				}
+			}
+		}
+	}
+
+	// Check parking (optional)
+	if (obj.parking !== undefined) {
+		if (!Array.isArray(obj.parking)) {
+			return false
+		}
+
+		for (const toolbar of obj.parking) {
+			if (!Array.isArray(toolbar)) {
+				return false
+			}
+
+			for (const item of toolbar) {
+				if (typeof item !== 'object' || item === null) {
+					return false
+				}
+
+				const itemObj = item as Record<string, unknown>
+
+				// Validate tool (optional string)
+				if (itemObj.tool !== undefined && typeof itemObj.tool !== 'string') {
+					return false
+				}
+
+				// Validate editor (optional string)
+				if (itemObj.editor !== undefined && typeof itemObj.editor !== 'string') {
+					return false
+				}
+
+				// Validate config (optional plain object)
+				if (itemObj.config !== undefined) {
+					if (typeof itemObj.config !== 'object' || itemObj.config === null) {
+						return false
+					}
+					if (Array.isArray(itemObj.config)) {
+						return false
+					}
+				}
+			}
+		}
+	}
+
+	return true
+}
+
+/**
+ * Hydrate a serialized palette layout into reactive PaletteBorders.
+ *
+ * This function creates reactive arrays from the serialized layout, using
+ * the palette's tool/editor registry to validate references.
+ *
+ * @param palette - The palette instance for tool/editor validation
+ * @param layout - The serialized layout to hydrate
+ * @returns Reactive PaletteBorders ready for use in the palette
+ */
+export function hydratePaletteLayout(
+	_palette: Palette,
+	layout: SerializedPaletteLayout
+): PaletteBorders {
+	const regions: PaletteRegion[] = ['top', 'right', 'bottom', 'left']
+
+	const borders: Partial<PaletteBorders> = {}
+
+	for (const region of regions) {
+		const serializedBorder = layout.borders[region]
+
+		// PaletteBorder is PaletteTrack[], and PaletteTrack is { space, toolbar }[]
+		const border: PaletteBorder = reactive(
+			serializedBorder.map((track) => {
+				return reactive([
+					{
+						space: track.space,
+						toolbar: reactive(
+							track.toolbar.map((item) => {
+								// Create the item with all properties at once to avoid readonly assignment issues
+								const result: Record<string, unknown> = {}
+
+								if (item.tool !== undefined) {
+									result.tool = item.tool
+								}
+								if (item.editor !== undefined) {
+									result.editor = item.editor
+								}
+								if (item.config !== undefined) {
+									result.config = item.config
+								}
+
+								return result as PaletteToolbarItem
+							})
+						),
+					},
+				])
+			})
+		)
+
+		borders[region] = border
+	}
+
+	return borders as PaletteBorders
 }

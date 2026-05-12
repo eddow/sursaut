@@ -70,19 +70,25 @@ type DemoEnumSubsetConfig = DemoToolbarItemConfigBase & {
 	keywords?: readonly string[]
 }
 
+type DemoDrawerConfig = DemoToolbarItemConfigBase & {
+	open?: 'click' | 'hover' | 'press'
+	placement?: 'start' | 'center' | 'end'
+}
+
 type DemoToolbarConfigByVariant = {
-	toggle: DemoToolbarItemConfigBase
+	button: DemoToolbarItemConfigBase
+	commandBox: DemoToolbarItemConfigBase
+	drawer: DemoDrawerConfig
 	flip: DemoEnumSubsetConfig
 	radio: DemoEnumSubsetConfig
 	select: DemoEnumSubsetConfig
-	slider: DemoToolbarItemConfigBase
-	stepper: DemoToolbarItemConfigBase
-	stars: DemoToolbarItemConfigBase
 	segmented: DemoEnumSubsetConfig
-	splitRadio: DemoEnumSubsetConfig
+	slider: DemoToolbarItemConfigBase
 	splitButton: DemoToolbarItemConfigBase
-	button: DemoToolbarItemConfigBase
-	commandBox: DemoToolbarItemConfigBase
+	splitRadio: DemoEnumSubsetConfig
+	stars: DemoToolbarItemConfigBase
+	stepper: DemoToolbarItemConfigBase
+	toggle: DemoToolbarItemConfigBase
 }
 
 type DemoToolId =
@@ -431,6 +437,7 @@ function isDemoChoiceDisplay(value: string): value is DemoChoiceDisplay {
 const demoEditorLabels = {
 	button: 'Button',
 	commandBox: 'Command box',
+	drawer: 'Drawer',
 	flip: 'Flip',
 	radio: 'Radio',
 	select: 'Select',
@@ -455,31 +462,7 @@ const demoChoiceDisplayOptions = [
 	{ value: 'text', label: demoChoiceDisplayLabels.text },
 ] satisfies readonly DemoChoiceDisplayOption[]
 
-function editorOptions(item: DemoPaletteItem): readonly DemoEditorOption[] {
-	if (!item.tool) return [{ value: 'commandBox', label: demoEditorLabels.commandBox }]
-	const tool = demoPalette.tool(item.tool)
-	if ('run' in tool)
-		return [
-			{ value: 'button', label: demoEditorLabels.button },
-			{ value: 'splitButton', label: demoEditorLabels.splitButton },
-		]
-	if (tool.type === 'boolean') return [{ value: 'toggle', label: demoEditorLabels.toggle }]
-	if (tool.type === 'enum')
-		return [
-			{ value: 'flip', label: demoEditorLabels.flip },
-			{ value: 'radio', label: demoEditorLabels.radio },
-			{ value: 'select', label: demoEditorLabels.select },
-			{ value: 'segmented', label: demoEditorLabels.segmented },
-			{ value: 'splitRadio', label: demoEditorLabels.splitRadio },
-		]
-	if (tool.type === 'number')
-		return [
-			{ value: 'slider', label: demoEditorLabels.slider },
-			{ value: 'stepper', label: demoEditorLabels.stepper },
-			{ value: 'stars', label: demoEditorLabels.stars },
-		]
-	return []
-}
+// editorOptions replaced by palette.describeItemConfiguration().presentation.editorChoices
 
 function setItemEditor(item: DemoPaletteItem, value: string) {
 	if (!isDemoEditorVariant(value)) return
@@ -603,7 +586,7 @@ function EnumChoiceContent(props: {
 	const parts = enumChoiceParts(props.value)
 	return (
 		<span class={props.class}>
-			<span if={props.display !== 'text'} class="palette-demo-icon">
+			<span if={props.display !== 'text'} class="palette-default-icon">
 				{parts.icon}
 			</span>
 			<span if={props.display !== 'icon'}>{parts.label}</span>
@@ -693,23 +676,23 @@ function SplitRadioEditor({
 	return (
 		<div
 			class={[
-				'palette-demo-split',
-				'palette-demo-split-radio',
-				`palette-demo-tone-${toolbarMeta(item).tone}`,
-				`palette-demo-layout-${direction}`,
+				'palette-default-split',
+				'palette-default-split-radio',
+				`palette-default-tone-${toolbarMeta(item).tone}`,
+				`palette-default-layout-${direction}`,
 			]}
 		>
 			<button
 				type="button"
-				class={['palette-demo-tool', model.checked ? 'is-selected' : undefined]}
+				class={['palette-default-tool', model.checked ? 'is-selected' : undefined]}
 				{...model.button}
 				title={tooltip(item, compactLabel(tool.value))}
 			>
-				<span class="palette-demo-icon">{compactIcon(tool.value)}</span>
+				<span class="palette-default-icon">{compactIcon(tool.value)}</span>
 			</button>
 			<button
 				type="button"
-				class="palette-demo-trigger"
+				class="palette-default-trigger"
 				{...model.trigger}
 				title={tooltip(item, 'Open choices')}
 			>
@@ -717,9 +700,9 @@ function SplitRadioEditor({
 			</button>
 			<div
 				class={[
-					'palette-demo-menu',
-					`palette-demo-layout-${direction}`,
-					`palette-demo-region-${regionFromScope(scope)}`,
+					'palette-default-menu',
+					`palette-default-layout-${direction}`,
+					`palette-default-region-${regionFromScope(scope)}`,
 				]}
 				{...model.menu}
 			>
@@ -727,7 +710,7 @@ function SplitRadioEditor({
 					{(entry) => (
 						<button
 							type="button"
-							class={['palette-demo-menu-item', entry.checked ? 'is-selected' : undefined]}
+							class={['palette-default-menu-item', entry.checked ? 'is-selected' : undefined]}
 							{...entry.button}
 							title={compactLabel(entry.item.value)}
 						>
@@ -738,7 +721,7 @@ function SplitRadioEditor({
 									}
 								}
 								display={display}
-								class="palette-demo-choice"
+								class="palette-default-choice"
 							/>
 						</button>
 					)}
@@ -760,14 +743,14 @@ function RadioEditor({
 	return (
 		<div
 			class={[
-				'palette-demo-radio-group',
-				`palette-demo-tone-${meta.tone}`,
-				`palette-demo-layout-${direction}`,
+				'palette-default-radio-group',
+				`palette-default-tone-${meta.tone}`,
+				`palette-default-layout-${direction}`,
 			]}
 			title={tooltip(item, meta.hint)}
 		>
-			<span if={meta.icon} class="palette-demo-radio-label">
-				<span class="palette-demo-icon">{meta.icon}</span>
+			<span if={meta.icon} class="palette-default-radio-label">
+				<span class="palette-default-icon">{meta.icon}</span>
 				<span>{meta.label}</span>
 			</span>
 			<for each={values}>
@@ -775,7 +758,7 @@ function RadioEditor({
 					<button
 						type="button"
 						class={[
-							'palette-demo-radio-item',
+							'palette-default-radio-item',
 							tool.value === value.value ? 'is-selected' : undefined,
 						]}
 						disabled={value.can === false || tool.value === value.value}
@@ -785,8 +768,8 @@ function RadioEditor({
 						}}
 						title={compactLabel(value.value)}
 					>
-						<span class="palette-demo-icon">{tool.value === value.value ? '◉' : '○'}</span>
-						<EnumChoiceContent value={value} display={display} class="palette-demo-choice" />
+						<span class="palette-default-icon">{tool.value === value.value ? '◉' : '○'}</span>
+						<EnumChoiceContent value={value} display={display} class="palette-default-choice" />
 					</button>
 				)}
 			</for>
@@ -846,24 +829,24 @@ function SplitButtonEditor({
 	return (
 		<div
 			class={[
-				'palette-demo-split',
-				'palette-demo-split-button',
-				`palette-demo-tone-${toolbarMeta(item).tone}`,
-				`palette-demo-layout-${direction}`,
+				'palette-default-split',
+				'palette-default-split-button',
+				`palette-default-tone-${toolbarMeta(item).tone}`,
+				`palette-default-layout-${direction}`,
 			]}
 		>
 			<button
 				type="button"
-				class={['palette-demo-tool', 'palette-demo-tool-accent']}
+				class={['palette-default-tool', 'palette-default-tool-accent']}
 				{...model.button}
 				disabled={!tool.can}
 				title={tooltip(item, 'Run selected action')}
 			>
-				<span class="palette-demo-icon">{toolbarMeta(item).icon ?? '↺'}</span>
+				<span class="palette-default-icon">{toolbarMeta(item).icon ?? '↺'}</span>
 			</button>
 			<button
 				type="button"
-				class="palette-demo-trigger"
+				class="palette-default-trigger"
 				{...model.trigger}
 				title={tooltip(item, 'Open action presets')}
 			>
@@ -871,15 +854,15 @@ function SplitButtonEditor({
 			</button>
 			<div
 				class={[
-					'palette-demo-menu',
-					`palette-demo-layout-${direction}`,
-					`palette-demo-region-${regionFromScope(scope)}`,
+					'palette-default-menu',
+					`palette-default-layout-${direction}`,
+					`palette-default-region-${regionFromScope(scope)}`,
 				]}
 				{...model.menu}
 			>
 				<for each={model.items}>
 					{(entry) => (
-						<button type="button" class="palette-demo-menu-item" {...entry.button}>
+						<button type="button" class="palette-default-menu-item" {...entry.button}>
 							{entry.item.label}
 						</button>
 					)}
@@ -898,9 +881,9 @@ function ToggleEditor({
 		<button
 			type="button"
 			class={[
-				'palette-demo-tool',
-				'palette-demo-tool-compact',
-				`palette-demo-tone-${meta.tone}`,
+				'palette-default-tool',
+				'palette-default-tool-compact',
+				`palette-default-tone-${meta.tone}`,
 				tool.value ? 'is-selected' : undefined,
 			]}
 			title={tooltip(item, meta.hint)}
@@ -909,7 +892,7 @@ function ToggleEditor({
 				setLastAction(`Notifications ${tool.value ? 'enabled' : 'muted'}`)
 			}}
 		>
-			<span class="palette-demo-icon">{tool.value ? '🔔' : '🔕'}</span>
+			<span class="palette-default-icon">{tool.value ? '🔔' : '🔕'}</span>
 		</button>
 	)
 }
@@ -939,9 +922,9 @@ function FlipEditor({
 		<button
 			type="button"
 			class={[
-				'palette-demo-tool',
-				'palette-demo-tool-compact',
-				`palette-demo-tone-${meta.tone}`,
+				'palette-default-tool',
+				'palette-default-tool-compact',
+				`palette-default-tone-${meta.tone}`,
 				tool.value !== tool.default ? 'is-selected' : undefined,
 			]}
 			disabled={!state.next || state.next.can === false}
@@ -952,7 +935,7 @@ function FlipEditor({
 				setLastAction(`${meta.label}: ${compactLabel(state.next.value)}`)
 			}}
 		>
-			<span class="palette-demo-icon">
+			<span class="palette-default-icon">
 				{state.display?.icon ?? meta.icon ?? compactIcon(tool.value)}
 			</span>
 		</button>
@@ -970,10 +953,10 @@ function SelectEditor({
 	const currentParts = current ? enumChoiceParts(current) : undefined
 	return (
 		<label
-			class={['palette-demo-select', `palette-demo-tone-${meta.tone}`]}
+			class={['palette-default-select', `palette-default-tone-${meta.tone}`]}
 			title={tooltip(item, meta.hint)}
 		>
-			<span if={meta.icon || display !== 'text'} class="palette-demo-icon">
+			<span if={meta.icon || display !== 'text'} class="palette-default-icon">
 				{meta.icon ?? currentParts?.icon ?? compactIcon(tool.value)}
 			</span>
 			<select
@@ -1003,9 +986,9 @@ function SegmentedEditor({
 	return (
 		<div
 			class={[
-				'palette-demo-segmented',
-				`palette-demo-tone-${meta.tone}`,
-				`palette-demo-layout-${direction}`,
+				'palette-default-segmented',
+				`palette-default-tone-${meta.tone}`,
+				`palette-default-layout-${direction}`,
 			]}
 			title={tooltip(item, meta.hint)}
 		>
@@ -1014,8 +997,8 @@ function SegmentedEditor({
 					<button
 						type="button"
 						class={[
-							'palette-demo-tool',
-							'palette-demo-tool-compact',
+							'palette-default-tool',
+							'palette-default-tool-compact',
 							tool.value === value.value ? 'is-selected' : undefined,
 						]}
 						disabled={value.can === false || tool.value === value.value}
@@ -1025,7 +1008,7 @@ function SegmentedEditor({
 						}}
 						title={compactLabel(value.value)}
 					>
-						<EnumChoiceContent value={value} display={display} class="palette-demo-choice" />
+						<EnumChoiceContent value={value} display={display} class="palette-default-choice" />
 					</button>
 				)}
 			</for>
@@ -1058,21 +1041,21 @@ function StarsEditor({
 	return (
 		<div
 			class={[
-				'palette-demo-stars',
-				`palette-demo-tone-${meta.tone}`,
-				`palette-demo-layout-${direction}`,
+				'palette-default-stars',
+				`palette-default-tone-${meta.tone}`,
+				`palette-default-layout-${direction}`,
 			]}
 			title={tooltip(item, meta.hint)}
 		>
-			<span class="palette-demo-icon">{meta.icon ?? '★'}</span>
+			<span class="palette-default-icon">{meta.icon ?? '★'}</span>
 			<span
-				class={['palette-demo-stars-row', `palette-demo-layout-${direction}`]}
+				class={['palette-default-stars-row', `palette-default-layout-${direction}`]}
 				{...model.container}
 			>
 				<for each={model.starItems}>
 					{(entry) => (
 						<span
-							class={['palette-demo-arrow', entry.status === 'before' ? 'is-selected' : undefined]}
+							class={['palette-default-arrow', entry.status === 'before' ? 'is-selected' : undefined]}
 							{...entry.el}
 							title={`${meta.label} ${entry.index + 1}`}
 						>
@@ -1098,14 +1081,14 @@ function SliderEditor({
 	return (
 		<label
 			class={[
-				'palette-demo-slider',
-				`palette-demo-tone-${meta.tone}`,
-				`palette-demo-layout-${direction}`,
-				`palette-demo-region-${regionFromScope(scope)}`,
+				'palette-default-slider',
+				`palette-default-tone-${meta.tone}`,
+				`palette-default-layout-${direction}`,
+				`palette-default-region-${regionFromScope(scope)}`,
 			]}
 			title={tooltip(item, `${meta.label} ${tool.value}`)}
 		>
-			<span class="palette-demo-icon">{meta.icon ?? 'A'}</span>
+			<span class="palette-default-icon">{meta.icon ?? 'A'}</span>
 			<input
 				type="range"
 				min={String(min)}
@@ -1130,15 +1113,15 @@ function StepperEditor({
 	return (
 		<div
 			class={[
-				'palette-demo-stepper',
-				`palette-demo-tone-${meta.tone}`,
-				`palette-demo-layout-${layoutFromScope(scope)}`,
+				'palette-default-stepper',
+				`palette-default-tone-${meta.tone}`,
+				`palette-default-layout-${layoutFromScope(scope)}`,
 			]}
 			title={tooltip(item, `${meta.label} ${tool.value}`)}
 		>
 			<button
 				type="button"
-				class={['palette-demo-tool', 'palette-demo-tool-compact']}
+				class={['palette-default-tool', 'palette-default-tool-compact']}
 				disabled={tool.value - (tool.step ?? 1) < (tool.min ?? Number.NEGATIVE_INFINITY)}
 				onClick={() => {
 					tool.value = Math.max(tool.min ?? Number.NEGATIVE_INFINITY, tool.value - (tool.step ?? 1))
@@ -1147,13 +1130,13 @@ function StepperEditor({
 			>
 				−
 			</button>
-			<span class="palette-demo-stepper-value">
-				<span class="palette-demo-icon">{meta.icon ?? 'A'}</span>
+			<span class="palette-default-stepper-value">
+				<span class="palette-default-icon">{meta.icon ?? 'A'}</span>
 				{tool.value}
 			</span>
 			<button
 				type="button"
-				class={['palette-demo-tool', 'palette-demo-tool-compact']}
+				class={['palette-default-tool', 'palette-default-tool-compact']}
 				disabled={tool.value + (tool.step ?? 1) > (tool.max ?? Number.POSITIVE_INFINITY)}
 				onClick={() => {
 					tool.value = Math.min(tool.max ?? Number.POSITIVE_INFINITY, tool.value + (tool.step ?? 1))
@@ -1174,16 +1157,58 @@ function ButtonEditor({
 	return (
 		<button
 			type="button"
-			class={['palette-demo-tool', `palette-demo-tone-${meta.tone}`]}
+			class={['palette-default-tool', `palette-default-tone-${meta.tone}`]}
 			disabled={!tool.can}
 			title={tooltip(item, meta.hint)}
 			onClick={() => {
 				tool.run()
 			}}
 		>
-			<span class="palette-demo-icon">{meta.icon ?? '▶'}</span>
+			<span class="palette-default-icon">{meta.icon ?? '▶'}</span>
 			<span>{meta.label}</span>
 		</button>
+	)
+}
+
+function DrawerEditor({
+	item,
+}: PaletteEditorContext<undefined, DemoPaletteItem, DemoPaletteSchema>) {
+	const meta = toolbarMeta(item)
+	const drawerItem = item as { editor: 'drawer'; toolbar: PaletteToolbar; config?: DemoDrawerConfig }
+	const state = reactive({ open: false })
+	const config = drawerItem.config ?? {}
+	const openTrigger = config.open ?? 'click'
+	
+	const toggleOpen = () => {
+		state.open = !state.open
+	}
+	
+	const chevronIcon = state.open ? '▼' : '▶'
+	
+	return (
+		<div class="palette-default-drawer-container">
+			<button
+				type="button"
+				class={['palette-default-tool', `palette-default-tone-${meta.tone}`]}
+				title={tooltip(item, meta.hint)}
+				onClick={toggleOpen}
+				aria-expanded={state.open}
+				aria-haspopup="true"
+			>
+				<span class="palette-default-icon">{meta.icon ?? '▶'}</span>
+				<span>{meta.label}</span>
+				<span class="palette-default-drawer-chevron">{chevronIcon}</span>
+			</button>
+			{state.open && (
+				<div class="palette-default-drawer-popover">
+					{drawerItem.toolbar.map((childItem) => (
+						<div class="palette-default-drawer-item">
+							<span>{childItem.editor}</span>
+						</div>
+					))}
+				</div>
+			)}
+		</div>
 	)
 }
 
@@ -1228,34 +1253,34 @@ function CommandBox(props: DemoCommandBoxProps) {
 	return (
 		<div
 			class={[
-				'palette-demo-command-box',
+				'palette-default-command-box',
 				props.expanded ? 'is-expanded' : undefined,
 				props.floating ? 'is-floating' : undefined,
 			]}
 		>
-			<div class="palette-demo-command-shell" title={props.title}>
+			<div class="palette-default-command-shell" title={props.title}>
 				<button
 					if={ui.editable}
 					type="button"
 					{...(edition().button ?? {})}
 					class={[
-						'palette-demo-command-icon',
-						'palette-demo-tool',
-						'palette-demo-tool-compact',
+						'palette-default-command-icon',
+						'palette-default-tool',
+						'palette-default-tool-compact',
 						edition().checked ? 'is-selected' : undefined,
 					]}
 				>
 					✎
 				</button>
-				<span else class="palette-demo-icon">
+				<span else class="palette-default-icon">
 					{props.icon ?? '⌘'}
 				</span>
-				<div class="palette-demo-command-tokens">
+				<div class="palette-default-command-tokens">
 					<for each={props.commandBox.categories.active}>
 						{(category) => (
 							<button
 								type="button"
-								class="palette-demo-command-chip"
+								class="palette-default-command-chip"
 								onClick={() => {
 									props.commandBox.categories.toggle(category)
 								}}
@@ -1276,7 +1301,7 @@ function CommandBox(props: DemoCommandBoxProps) {
 						{(token) => (
 							<button
 								type="button"
-								class="palette-demo-command-chip"
+								class="palette-default-command-chip"
 								onClick={() => {
 									props.commandBox.keywords.removeToken(token.keyword)
 								}}
@@ -1297,7 +1322,7 @@ function CommandBox(props: DemoCommandBoxProps) {
 						use={() => {
 							if (input) props.onInputMount?.(input)
 						}}
-						class="palette-demo-command-input"
+						class="palette-default-command-input"
 						value={props.commandBox.input.value}
 						placeholder={props.commandBox.input.placeholder}
 						onInput={(event) => {
@@ -1327,13 +1352,13 @@ function CommandBox(props: DemoCommandBoxProps) {
 					/>
 				</div>
 			</div>
-			<div if={props.expanded} class="palette-demo-command-popover">
-				<div if={props.commandBox.suggestions.length > 0} class="palette-demo-command-suggestions">
+			<div if={props.expanded} class="palette-default-command-popover">
+				<div if={props.commandBox.suggestions.length > 0} class="palette-default-command-suggestions">
 					<for each={props.commandBox.suggestions}>
 						{(suggestion) => (
 							<button
 								type="button"
-								class="palette-demo-command-suggestion"
+								class="palette-default-command-suggestion"
 								onClick={() => {
 									props.commandBox.keywords.addToken(suggestion.keyword)
 									props.commandBox.input.value = ''
@@ -1345,8 +1370,8 @@ function CommandBox(props: DemoCommandBoxProps) {
 						)}
 					</for>
 				</div>
-				<div class="palette-demo-command-results">
-					<div if={props.commandBox.results.length === 0} class="palette-demo-command-empty">
+				<div class="palette-default-command-results">
+					<div if={props.commandBox.results.length === 0} class="palette-default-command-empty">
 						No matching commands
 					</div>
 					<for else each={props.commandBox.results.slice(0, 6)}>
@@ -1360,7 +1385,7 @@ function CommandBox(props: DemoCommandBoxProps) {
 								<button
 									type="button"
 									class={[
-										'palette-demo-command-result',
+										'palette-default-command-result',
 										state.selected ? 'is-selected' : undefined,
 									]}
 									disabled={entry.can === false}
@@ -1374,14 +1399,14 @@ function CommandBox(props: DemoCommandBoxProps) {
 										}
 									}}
 								>
-									<span class="palette-demo-command-result-copy">
-										<span class="palette-demo-command-result-label">
-											<span if={entry.icon} class="palette-demo-icon">
+									<span class="palette-default-command-result-copy">
+										<span class="palette-default-command-result-label">
+											<span if={entry.icon} class="palette-default-icon">
 												{entry.icon}
 											</span>
 											{entry.label}
 										</span>
-										<span class="palette-demo-command-result-meta">{entry.meta}</span>
+										<span class="palette-default-command-result-meta">{entry.meta}</span>
 									</span>
 								</button>
 							)
@@ -1444,15 +1469,15 @@ function CommandBoxPopup() {
 
 	return (
 		<div
-			class="palette-demo-command-overlay"
+			class="palette-default-command-overlay"
 			onMousedown={(event: MouseEvent) => {
 				if (event.target === event.currentTarget) closeOverlay()
 			}}
 		>
-			<div this={root} class="palette-demo-command-panel">
+			<div this={root} class="palette-default-command-panel">
 				<button
 					type="button"
-					class="palette-demo-command-close"
+					class="palette-default-command-close"
 					onClick={closeOverlay}
 					aria-label="Close command palette"
 				>
@@ -1461,16 +1486,16 @@ function CommandBoxPopup() {
 				<div if={centerOverlay.editingItem}>
 					<PaletteInspectorPanel />
 				</div>
-				<div if={!centerOverlay.editingItem} class="palette-demo-command-top">
+				<div if={!centerOverlay.editingItem} class="palette-default-command-top">
 					<Parking
 						if={popupParkingToolbars.length > 0}
 						toolbars={popupParkingToolbars}
 						el:class="palette-demo-command-parking"
 						space:class="palette-demo-drop-zone"
-						toolbar:class="palette-demo-toolbar palette-demo-command-toolbar"
+						toolbar:class="palette-default-toolbar palette-default-command-toolbar"
 					/>
-					<div class="palette-demo-command-bottom">
-						<div class="palette-demo-command-main">
+					<div class="palette-default-command-bottom">
+						<div class="palette-default-command-main">
 							<CommandBox
 								expanded
 								commandBox={demoPalette.editing ? popupAddCommandBox : popupCommandBox}
@@ -1503,13 +1528,13 @@ function CommandBoxPopup() {
 
 function PopupAddPanel() {
 	return (
-		<div class="palette-demo-panel palette-demo-add-panel">
+		<div class="palette-default-panel palette-default-add-panel">
 			<div class="palette-demo-panel-title">Add to toolbar</div>
-			<div if={!popupAddState.entry} class="palette-demo-config-empty">
+			<div if={!popupAddState.entry} class="palette-default-config-empty">
 				Select a tool or editor on the left, then choose one of its derived variants here.
 			</div>
-			<div if={popupAddState.entry} class="palette-demo-config-stack">
-				<div class="palette-demo-config-header">
+			<div if={popupAddState.entry} class="palette-default-config-stack">
+				<div class="palette-default-config-header">
 					<strong>{popupAddState.entry?.label}</strong>
 					<span>{popupAddState.entry?.meta}</span>
 				</div>
@@ -1544,13 +1569,13 @@ function PopupAddPanel() {
 						}
 						return (
 							<div
-								class={['palette-demo-add-variant', computed.isSetVariant ? 'is-set' : undefined]}
+								class={['palette-default-add-variant', computed.isSetVariant ? 'is-set' : undefined]}
 							>
 								<button
 									type="button"
 									class={[
-										'palette-demo-config-header',
-										'palette-demo-add-variant-trigger',
+										'palette-default-config-header',
+										'palette-default-add-variant-trigger',
 										computed.canDrag ? undefined : 'is-disabled',
 										computed.isSelected ? 'is-selected' : undefined,
 									]}
@@ -1560,14 +1585,14 @@ function PopupAddPanel() {
 									}}
 								>
 									<strong>
-										<span if={variant.icon} class="palette-demo-icon">
+										<span if={variant.icon} class="palette-default-icon">
 											{variant.icon}
 										</span>
 										{variant.label}
 									</strong>
 									<span>{variant.meta}</span>
 								</button>
-								<div if={variant.kind === 'set'} class="palette-demo-add-inline-value">
+								<div if={variant.kind === 'set'} class="palette-default-add-inline-value">
 									<strong>Value</strong>
 									<select
 										if={variant.kind === 'set' && variant.valueType === 'boolean'}
@@ -1624,15 +1649,15 @@ function PopupAddPanel() {
 								</ConfigRow>
 								<div
 									if={computed.isSelected && !computed.dragItem}
-									class="palette-demo-add-drag-note"
+									class="palette-default-add-drag-note"
 								>
 									Complete this variant to drag it into a toolbar.
 								</div>
 								<div
 									if={computed.isSelected && computed.dragItem}
-									class="palette-demo-add-drag-source"
+									class="palette-default-add-drag-source"
 								>
-									<div class="palette-demo-add-drag-note">Drag into a toolbar</div>
+									<div class="palette-default-add-drag-note">Drag into a toolbar</div>
 									<Toolbar
 										border={popupAddPreview.border}
 										region="top"
@@ -1640,7 +1665,7 @@ function PopupAddPanel() {
 										trackIndex={0}
 										toolbar={popupAddPreview.toolbar}
 										direction="horizontal"
-										el:class="palette-demo-toolbar palette-demo-command-toolbar palette-demo-add-drag-toolbar"
+										el:class="palette-default-toolbar palette-default-command-toolbar palette-default-add-drag-toolbar"
 									/>
 								</div>
 							</div>
@@ -1689,22 +1714,24 @@ function ConfigRow(props: {
 	children: JSX.Element | readonly JSX.Element[]
 }) {
 	return (
-		<div class="palette-demo-config-row">
-			<div class="palette-demo-config-key">
+		<div class="palette-default-config-row">
+			<div class="palette-default-config-key">
 				<strong>{props.label}</strong>
 				<span if={props.description}>{props.description}</span>
 			</div>
-			<div class="palette-demo-config-value">{props.children}</div>
+			<div class="palette-default-config-value">{props.children}</div>
 		</div>
 	)
 }
 
 function BaseConfigurator({
 	item,
+	scope,
 }: PaletteEditorContext<PaletteTool | undefined, DemoPaletteItem, DemoPaletteSchema>) {
+	const editorChoices = (scope as Record<string, unknown>).editorChoices as ReadonlyArray<{ id: string; label: string; selected: boolean }> | undefined ?? []
 	const meta = toolbarMeta(item)
 	return (
-		<div class="palette-demo-config-table">
+		<div class="palette-default-config-table">
 			<ConfigRow label="Label">
 				<input
 					value={meta.label}
@@ -1736,8 +1763,8 @@ function BaseConfigurator({
 						setItemEditor(item, value)
 					}}
 				>
-					<for each={editorOptions(item)}>
-						{(option) => <option value={option.value}>{option.label}</option>}
+					<for each={editorChoices}>
+						{(option) => <option value={option.id}>{option.label}</option>}
 					</for>
 				</select>
 			</ConfigRow>
@@ -1762,11 +1789,12 @@ function BaseConfigurator({
 function EnumSubsetConfigurator({
 	item,
 	tool,
+	scope,
 }: PaletteEditorContext<DemoEnumTool, DemoPaletteItem, DemoPaletteSchema>) {
 	const config = enumSubsetConfig(item)
 	return (
-		<div class="palette-demo-config-stack">
-			<BaseConfigurator item={item} tool={tool} scope={{}} flags={{}} />
+		<div class="palette-default-config-stack">
+			<BaseConfigurator item={item} tool={tool} scope={scope} flags={{}} />
 			<ConfigRow
 				label="Choice display"
 				description="Choose whether enum values show their icon, text label, or both."
@@ -1813,27 +1841,27 @@ function EnumSubsetConfigurator({
 function PaletteInspectorPanel() {
 	return (
 		<div class="palette-demo-panel">
-			<div class="palette-demo-config-toolbar">
+			<div class="palette-default-config-toolbar">
 				<div>
 					<div class="palette-demo-panel-title">Item configuration</div>
 				</div>
 				<button
 					if={demoInspection.item}
 					type="button"
-					class="palette-demo-tool"
+					class="palette-default-tool"
 					onClick={returnToCommandPopup}
 				>
 					OK
 				</button>
 			</div>
-			<div if={!demoPalette.editing} class="palette-demo-config-empty">
+			<div if={!demoPalette.editing} class="palette-default-config-empty">
 				Enable palette edit mode, then click a toolbar item to configure it.
 			</div>
-			<div if={demoPalette.editing && !demoInspection.item} class="palette-demo-config-empty">
+			<div if={demoPalette.editing && !demoInspection.item} class="palette-default-config-empty">
 				Select a toolbar item to edit its settings.
 			</div>
-			<div if={demoInspection.item} class="palette-demo-config-stack">
-				<div class="palette-demo-config-header">
+			<div if={demoInspection.item} class="palette-default-config-stack">
+				<div class="palette-default-config-header">
 					<strong>{toolbarMeta(demoInspection.item!).label}</strong>
 					<span>{demoInspection.item?.tool ?? demoInspection.item?.editor}</span>
 				</div>
@@ -1883,6 +1911,11 @@ const demoEditors: DemoPalette['editors'] = {
 	item: {
 		commandBox: {
 			editor: CommandBoxEditor,
+			configure: BaseConfigurator,
+			flags: { footprint: 'horizontal' },
+		},
+		drawer: {
+			editor: DrawerEditor,
 			configure: BaseConfigurator,
 			flags: { footprint: 'horizontal' },
 		},
@@ -2152,8 +2185,12 @@ function isDemoToolId(value: string | undefined): value is DemoToolId {
 
 function defaultEditorForSpec(spec: DemoToolSpec | undefined): DemoEditorVariant {
 	if (!spec) return 'commandBox'
-	const item: DemoPaletteItem = { tool: spec }
-	return editorOptions(item)[0]?.value ?? 'button'
+	const tool = demoPalette.tool(spec)
+	if ('run' in tool) return 'button'
+	if (tool.type === 'boolean') return 'toggle'
+	if (tool.type === 'enum') return 'select'
+	if (tool.type === 'number') return 'slider'
+	return 'button'
 }
 
 function popupAddDerivedVariants(): readonly DemoDerivedVariant[] {
@@ -2164,7 +2201,7 @@ function popupAddDerivedVariants(): readonly DemoDerivedVariant[] {
 function popupAddItem(variant: DemoDerivedVariant): DemoPaletteItem | undefined {
 	if (variant.kind === 'item') {
 		return {
-			editor: 'commandBox',
+			editor: variant.editor as keyof DemoToolbarConfigByVariant,
 			config: { icon: variant.icon ?? '⌘', label: variant.label, hint: variant.meta },
 		}
 	}
@@ -2318,7 +2355,7 @@ export default function PaletteDemo() {
 			space:class="palette-demo-drop-zone"
 			toolbar:class="palette-demo-toolbar"
 		>
-			<div class={['palette-demo-center-content', centerOverlay.visible ? 'is-dimmed' : undefined]}>
+			<div class={['palette-default-center-content', centerOverlay.visible ? 'is-dimmed' : undefined]}>
 				<div class="palette-demo-hero">
 					<div class="palette-demo-hero-copy">
 						<strong>Compact palette playground</strong>
@@ -2377,7 +2414,6 @@ export default function PaletteDemo() {
 	)
 }
 
-// TODO: All this css will have to be in ui/palette
 componentStyle.css`
 	.palette-demo-root {
 		display: flex;
@@ -2428,6 +2464,313 @@ componentStyle.css`
 	.palette-demo-track {
 		gap: 0;
 		align-items: stretch;
+	}
+
+	.palette-demo-drop-zone {
+		position: relative;
+		min-inline-size: 0;
+		min-block-size: 0;
+		border-radius: 10px;
+		transition:
+			min-inline-size 120ms ease,
+			min-block-size 120ms ease,
+			background 120ms ease,
+			box-shadow 120ms ease;
+	}
+
+	.toolbar-stack-space.palette-demo-drop-zone::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+		border-radius: inherit;
+		opacity: 0;
+		transition:
+			opacity 120ms ease,
+			border-color 120ms ease,
+			box-shadow 120ms ease;
+	}
+
+	.palette-demo-root.palette-dragging .stack-vertical .toolbar-stack-space.palette-demo-drop-zone::before {
+		border-top: 1px dotted rgba(96, 165, 250, 0.7);
+		border-bottom: 1px dotted rgba(96, 165, 250, 0.7);
+	}
+
+	.palette-demo-root.palette-dragging .stack-horizontal .toolbar-stack-space.palette-demo-drop-zone::before {
+		border-left: 1px dotted rgba(96, 165, 250, 0.7);
+		border-right: 1px dotted rgba(96, 165, 250, 0.7);
+	}
+
+	.palette-demo-root.palette-dragging .palette-horizontal .palette-demo-drop-zone:hover {
+		min-inline-size: 1rem;
+	}
+
+	.palette-demo-root.palette-dragging .palette-vertical .palette-demo-drop-zone:hover {
+		min-block-size: 1rem;
+	}
+
+	.palette-demo-root.palette-dragging .palette-horizontal .palette-demo-drop-zone[data-proximity='true'] {
+		min-inline-size: 1rem;
+	}
+
+	.palette-demo-root.palette-dragging .palette-vertical .palette-demo-drop-zone[data-proximity='true'] {
+		min-block-size: 1rem;
+	}
+
+	.palette-demo-root.palette-dragging .stack-vertical .toolbar-stack-space.palette-demo-drop-zone[data-proximity='true'] {
+		min-block-size: 1rem;
+	}
+
+	.palette-demo-root.palette-dragging .stack-horizontal .toolbar-stack-space.palette-demo-drop-zone[data-proximity='true'] {
+		min-inline-size: 1rem;
+	}
+
+	.palette-demo-root.palette-dragging .toolbar-stack-space.palette-demo-drop-zone[data-proximity='true']::before {
+		opacity: 1;
+		box-shadow: 0 0 10px rgba(96, 165, 250, 0.22);
+	}
+
+	.palette-demo-root.palette-dragging .toolbar-stack-space.palette-demo-drop-zone[data-active='true']::before {
+		opacity: 1;
+		box-shadow:
+			0 0 14px rgba(96, 165, 250, 0.32),
+			inset 0 0 0 1px rgba(147, 197, 253, 0.4);
+	}
+
+	.palette-demo-root.palette-dragging .palette-demo-drop-zone:hover,
+	.palette-demo-root.palette-dragging .palette-demo-drop-zone[data-proximity='true'] {
+		background: rgba(59, 130, 246, 0.08);
+	}
+
+	.palette-demo-root.palette-dragging .palette-demo-drop-zone[data-active='true'] {
+		background: rgba(59, 130, 246, 0.16);
+		box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.55);
+	}
+
+	.palette-demo-root.palette-editing .palette-demo-toolbar {
+		cursor: grab;
+	}
+
+	.palette-demo-toolbar {
+		gap: 0;
+		padding: 3px;
+		position: relative;
+		box-sizing: border-box;
+	}
+
+	.palette-demo-toolbar::before {
+		content: '';
+		position: absolute;
+		inset: -6px;
+		border-radius: 14px;
+		opacity: 0;
+		pointer-events: none;
+		background: rgba(96, 165, 250, 0.08);
+		box-shadow:
+			0 0 0 1px rgba(147, 197, 253, 0.26),
+			0 0 0 4px rgba(96, 165, 250, 0.14);
+		transition:
+			opacity 120ms ease,
+			background-color 120ms ease,
+			box-shadow 120ms ease;
+	}
+
+	.palette-demo-root.palette-editing .toolbar:hover::before {
+		opacity: 1;
+		pointer-events: auto;
+	}
+
+	.palette-demo-root.palette-editing .toolbar:hover {
+		z-index: 2;
+	}
+
+	.palette-demo-root.palette-editing .toolbar:hover::before {
+		background: rgba(96, 165, 250, 0.12);
+		box-shadow:
+			0 0 0 1px rgba(191, 219, 254, 0.45),
+			0 0 0 5px rgba(96, 165, 250, 0.18);
+	}
+
+	.palette-demo-border.palette-horizontal {
+		inline-size: 100%;
+	}
+
+	.palette-demo-border.palette-horizontal,
+	.palette-demo-border.palette-horizontal .palette-demo-track,
+	.palette-demo-border.palette-horizontal .palette-demo-track > .toolbar-track-slot {
+		min-block-size: max-content;
+	}
+
+	.palette-demo-border.palette-horizontal .palette-demo-toolbar {
+		align-items: center;
+		align-self: stretch;
+	}
+
+	.palette-demo-border.palette-horizontal .palette-demo-track,
+	.palette-demo-border.palette-horizontal .palette-demo-track > .toolbar-track-slot {
+		align-items: stretch;
+	}
+
+	.palette-demo-border.palette-vertical,
+	.palette-demo-border.palette-vertical .palette-demo-track,
+	.palette-demo-border.palette-vertical .palette-demo-track > .toolbar-track-slot {
+		min-inline-size: max-content;
+	}
+
+	.palette-demo-border.palette-vertical .palette-demo-toolbar {
+		inline-size: auto;
+		max-inline-size: 9.5rem;
+		align-self: stretch;
+	}
+
+	.palette-demo-center {
+		position: relative;
+		min-height: 0;
+		overflow: auto;
+	}
+
+	.palette-demo-center-content {
+		display: grid;
+		grid-auto-rows: max-content;
+		gap: 10px;
+		padding: 6px;
+		align-content: start;
+		min-height: 100%;
+		box-sizing: border-box;
+	}
+
+	.palette-demo-center-content.is-dimmed {
+		opacity: 0.35;
+		transition: opacity 140ms ease;
+	}
+
+	.palette-demo-hero,
+	.palette-demo-panel {
+		display: grid;
+		gap: 10px;
+		padding: 14px;
+		border: 1px solid rgba(51, 65, 85, 0.9);
+		border-radius: 16px;
+		background: rgba(15, 23, 42, 0.82);
+		box-shadow: 0 16px 36px rgba(2, 6, 23, 0.28);
+	}
+
+	.palette-demo-hero {
+		grid-template-columns: 1fr auto;
+		align-items: center;
+	}
+
+	.palette-demo-hero-copy {
+		display: grid;
+		gap: 4px;
+	}
+
+	.palette-demo-hero-copy span {
+		color: #94a3b8;
+	}
+
+	.palette-demo-hero-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		padding: 0.42rem 0.8rem;
+		border-radius: 999px;
+		background: rgba(30, 41, 59, 0.96);
+		border: 1px solid rgba(96, 165, 250, 0.24);
+		color: #bfdbfe;
+	}
+
+	.palette-demo-hero-chip.is-live {
+		border-color: rgba(34, 197, 94, 0.45);
+		color: #bbf7d0;
+	}
+
+	.palette-demo-hero-chip.is-quiet {
+		border-color: rgba(148, 163, 184, 0.36);
+		color: #cbd5e1;
+	}
+
+	.palette-demo-strip {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		padding: 10px 12px;
+		border: 1px dashed rgba(71, 85, 105, 0.9);
+		border-radius: 14px;
+		background: rgba(15, 23, 42, 0.56);
+	}
+
+	.palette-demo-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 0.34rem 0.7rem;
+		border-radius: 999px;
+		background: linear-gradient(180deg, #2563eb, #1d4ed8);
+		color: #eff6ff;
+		font-size: 0.78rem;
+		font-weight: 600;
+	}
+
+	.palette-demo-state-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+		gap: 8px;
+	}
+
+	.palette-demo-state-row {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 0.52rem 0.82rem;
+		border: 1px solid rgba(71, 85, 105, 0.65);
+		border-radius: 11px;
+		background: rgba(15, 23, 42, 0.64);
+	}
+
+	.palette-demo-state-key {
+		font-size: 0.74rem;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: #94a3b8;
+	}
+
+	.palette-demo-state-value {
+		font-weight: 600;
+	}
+
+	.palette-demo-root code {
+		font-size: 0.88em;
+		padding: 0.1rem 0.36rem;
+		border-radius: 999px;
+		background: rgba(30, 41, 59, 0.95);
+		color: #bfdbfe;
+	}
+
+	.palette-demo-root.palette-demo-theme-light .palette-demo-border,
+	.palette-demo-root.palette-demo-theme-light .palette-demo-hero,
+	.palette-demo-root.palette-demo-theme-light .palette-demo-panel,
+	.palette-demo-root.palette-demo-theme-light .palette-demo-state-row {
+		border-color: rgba(148, 163, 184, 0.8);
+		background: rgba(255, 255, 255, 0.78);
+		color: #0f172a;
+	}
+
+	.palette-demo-root.palette-demo-theme-light .palette-demo-hero-copy span,
+	.palette-demo-root.palette-demo-theme-light .palette-demo-panel-title,
+	.palette-demo-root.palette-demo-theme-light .palette-demo-state-key {
+		color: #475569;
+	}
+
+	.palette-demo-root.palette-demo-theme-light .palette-demo-strip {
+		border-color: rgba(148, 163, 184, 0.9);
+		background: rgba(226, 232, 240, 0.85);
+	}
+
+	.palette-demo-root.palette-demo-theme-light .palette-demo-root code {
+		border-color: rgba(148, 163, 184, 0.9);
+		background: rgba(241, 245, 249, 0.96);
+		color: #0f172a;
 	}
 
 	.palette-demo-drop-zone {

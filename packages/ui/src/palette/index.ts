@@ -1,4 +1,5 @@
 import './palette.css'
+import './palette-default.css'
 
 export type {
 	PaletteAddItemCommandEntry,
@@ -38,17 +39,22 @@ export {
 } from './components'
 export { createPaletteKeys, normalizePaletteKeystroke, paletteKeystrokeFromEvent } from './keys'
 export {
+	hydratePaletteLayout,
 	isEditableTool,
 	isEditing,
 	isRunTool,
 	notifyPaletteCatalogNativeDragStarted,
 	Palette,
+	paletteDefaultEditorCapabilities,
 	palettes,
 	paletteTool,
 	paletteToolFamily,
 	renderPaletteConfigurator,
 	renderPaletteEditor,
+	resolveItemPlacementTarget,
 	resolvePaletteEditor,
+	serializePaletteLayout,
+	validatePaletteLayout,
 	valueActions,
 } from './palette'
 export type {
@@ -56,19 +62,30 @@ export type {
 	PaletteBorders,
 	PaletteConfig,
 	PaletteConfiguratorComponent,
+	PaletteConfiguredItemTarget,
+	PaletteDrawerState,
+	PaletteDrawerToolbarItem,
 	PaletteEditableTool,
+	PaletteEditorCapability,
 	PaletteEditorContext,
 	PaletteEditorFamilyRegistry,
 	PaletteEditorOnlyRegistry,
 	PaletteEditorRegistry,
 	PaletteEditorSpec,
 	PaletteItem,
+	PaletteItemBindingSection,
+	PaletteItemConfigurationDescriptor,
+	PaletteItemMoveContract,
+	PaletteItemPresentationSection,
+	PaletteItemStructureSection,
 	PaletteKeyBindings as PaletteKeyBinding,
 	PaletteKeys,
 	PaletteKeystroke,
 	PaletteRegion,
 	PaletteSchema,
 	PaletteScope,
+	PaletteSurfaceAxis,
+	PaletteSurfaceContext,
 	PaletteTool,
 	PaletteToolbar,
 	PaletteToolbarItem,
@@ -76,4 +93,5 @@ export type {
 	PaletteToolFamily,
 	PaletteTools,
 	PaletteTrack,
+	SerializedPaletteLayout,
 } from './types'

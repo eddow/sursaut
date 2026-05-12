@@ -370,3 +370,126 @@ select:focus
   to
     opacity: 0
     transform: translateY(-1rem)
+
+// ── Palette Command Box ──
+
+.sursaut-palette-command-box
+  position: relative
+  inline-size: 100%
+
+.sursaut-palette-command-shell
+  display: flex
+  align-items: center
+  gap: var(--pico-spacing)
+
+.sursaut-palette-command-tokens
+  display: flex
+  flex: 1 1 auto
+  align-items: center
+  flex-wrap: wrap
+  gap: 4px
+  min-inline-size: 0
+
+.sursaut-palette-command-popover
+  position: absolute
+  inset-inline: 0
+  top: calc(100% + var(--pico-spacing))
+  z-index: 3
+  display: grid
+  gap: var(--pico-spacing)
+  padding: var(--pico-spacing)
+  border: 1px solid var(--pico-muted-border-color)
+  border-radius: var(--pico-border-radius)
+  background: var(--pico-card-background-color)
+  max-height: 20rem
+  overflow-y: auto
+
+.sursaut-palette-command-suggestions
+  display: flex
+  flex-wrap: wrap
+  gap: 4px
+  padding-bottom: var(--pico-spacing)
+  border-bottom: 1px solid var(--pico-muted-border-color)
+
+  button
+    font-size: 0.85rem
+    padding: 0.25rem 0.5rem
+
+.sursaut-palette-command-results
+  display: grid
+  gap: 2px
+
+.sursaut-palette-command-result
+  display: flex
+  align-items: center
+  gap: 0.5rem
+  width: 100%
+  text-align: left
+  padding: 0.5rem
+  border: 1px solid transparent
+  border-radius: var(--pico-border-radius)
+  transition: all var(--sursaut-transition-fast) ease-in-out
+
+  &:hover:not(:disabled)
+    background: var(--pico-secondary-background)
+
+  &.is-selected
+    background: var(--pico-primary-background)
+    color: var(--pico-primary-inverse)
+    border-color: var(--pico-primary)
+
+  &:disabled
+    opacity: 0.5
+    cursor: not-allowed
+
+.sursaut-palette-command-drag-handle
+  cursor: grab
+  opacity: 0.6
+  font-size: 0.8rem
+  user-select: none
+
+  &:active
+    cursor: grabbing
+
+.sursaut-palette-command-empty
+  padding: 1rem
+  text-align: center
+  color: var(--pico-muted-color)
+  font-size: 0.9rem
+
+// ── Palette Configurator ──
+
+.sursaut-palette-config-row
+  display: grid
+  grid-template-columns: auto minmax(0, 1fr)
+  gap: 0.75rem
+  align-items: center
+  min-inline-size: 0
+
+.sursaut-palette-config-key
+  display: grid
+  gap: 2px
+
+.sursaut-palette-config-key strong
+  font-size: 0.82rem
+  color: var(--pico-muted-color)
+
+.sursaut-palette-config-key span
+  font-size: 0.72rem
+  color: var(--pico-muted-color)
+
+.sursaut-palette-config-value
+  min-inline-size: 0
+
+.sursaut-palette-config-value input,
+.sursaut-palette-config-value select
+  inline-size: 100%
+  min-inline-size: 0
+
+.sursaut-palette-config-table
+  display: grid
+  gap: 0.75rem
+
+.sursaut-palette-config-stack
+  display: grid
+  gap: 0.75rem
