@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import dts from 'vite-plugin-dts'
-import { mkdirSync, writeFileSync, existsSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
+import { mkdirSync, writeFileSync, existsSync, copyFileSync, readdirSync, statSync } from 'node:fs'
+import { resolve, dirname, join } from 'node:path'
 import { sursautCorePlugin } from '@sursaut/core/plugin'
 
 const isWatch = process.argv.includes('--watch')
@@ -22,6 +22,37 @@ function ensureStableTypeEntrypoints() {
 				const target = resolve(distDir, file)
 				mkdirSync(dirname(target), { recursive: true })
 				if (!existsSync(target)) writeFileSync(target, content)
+			}
+		},
+	}
+}
+
+function copyCSSFiles() {
+	return {
+		name: 'copy-css-files',
+		writeBundle() {
+			// Copy palette.css
+			const srcPalette = resolve(__dirname, 'src/palette/palette.css')
+			const distPalette = resolve(__dirname, 'dist/palette.css')
+			if (existsSync(srcPalette)) {
+				mkdirSync(dirname(distPalette), { recursive: true })
+				copyFileSync(srcPalette, distPalette)
+			}
+			
+			// Copy styles/* directory
+			const srcStylesDir = resolve(__dirname, 'src/styles')
+			const distStylesDir = resolve(__dirname, 'dist/styles')
+			if (existsSync(srcStylesDir)) {
+				mkdirSync(distStylesDir, { recursive: true })
+				const files = readdirSync(srcStylesDir)
+				for (const file of files) {
+					const srcFile = join(srcStylesDir, file)
+					const destFile = join(distStylesDir, file)
+					const stat = statSync(srcFile)
+					if (stat.isFile()) {
+						copyFileSync(srcFile, destFile)
+					}
+				}
 			}
 		},
 	}
@@ -54,6 +85,7 @@ export default defineConfig({
 			include: ['src/**/*.ts', 'src/**/*.tsx'],
 			exclude: ['src/**/*.spec.ts', 'src/**/*.spec.tsx', 'src/**/*.test.ts', 'src/**/*.test.tsx'],
 		}),
+		copyCSSFiles(),
 	],
 	// For demo/e2e development: resolve @sursaut/ui to source instead of dist
 	resolve: {

@@ -33,21 +33,16 @@
 			"import": "./dist/palette.js",
 			"default": "./dist/palette.js"
 		},
-		"./palette.css": "./src/palette/palette.css",
+		"./palette.css": "./dist/palette.css",
 		"./models": {
 			"types": "./dist/models/index.d.ts",
 			"import": "./dist/models.js",
 			"default": "./dist/models.js"
 		},
-		"./styles/*": "./src/styles/*"
+		"./styles/*": "./dist/styles/*"
 	},
 	"files": [
 		"dist",
-		"src",
-		"!src/**/*.spec.*",
-		"!src/**/*.test.*",
-		"!demo",
-		"!tests",
 		"README.md",
 		"LLM.md"
 	],

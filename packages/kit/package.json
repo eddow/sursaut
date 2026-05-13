@@ -63,8 +63,6 @@
 	},
 	"files": [
 		"dist",
-		"src",
-		"!src/**/*.spec.*",
 		"docs",
 		"README.md",
 		"LLM.md"

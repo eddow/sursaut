@@ -104,7 +104,7 @@ export default defineConfig({
 	esbuild: false,
 	oxc: false,
 	optimizeDeps: {
-		exclude: ['mutts'],
+		exclude: ['mutts', 'react/jsx-runtime'],
 	},
 	build: {
 		lib: {

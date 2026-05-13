@@ -98,18 +98,7 @@
   },
   "files": [
     "dist",
-    "src/lib/*.ts",
-    "src/lib/*.md",
-    "!src/lib/*.spec.ts",
-    "src/dom",
-    "src/node",
-    "src/testing",
-    "src/types",
-    "src/shared.ts",
-    "src/index.ts",
-    "src/index.d.ts",
     "docs",
-    "src/plugin",
     "README.md",
     "LLM.md"
   ],
