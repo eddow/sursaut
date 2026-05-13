@@ -38,8 +38,8 @@ intercept('/api/**', async (req, next) => {
 })`
 
 const ssrSnippet = `// Server-side (Node.js) — uses smart executor
-import { api } from '@sursaut/kit/node'
-import { withSSR } from '@sursaut/kit/node'
+import { api } from '@sursaut/kit'
+import { withSSR } from '@sursaut/kit'
 
 // SSR: API calls are tracked for hydration
 const { result, context } = await withSSR(async () => {

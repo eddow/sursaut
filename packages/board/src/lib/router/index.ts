@@ -1,8 +1,4 @@
-import {
-	type ParsedPathSegment,
-	parsePathSegment,
-	type RouteParams,
-} from '@sursaut/kit/router/logic'
+import { type ParsedPathSegment, parsePathSegment, type RouteParams } from '@sursaut/kit'
 
 /**
  * Convert a file path to a file:// URL without encoding special characters like brackets.

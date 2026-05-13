@@ -1,5 +1,5 @@
 import { latch } from '@sursaut'
-import { setRouterPathnamePrefix } from '@sursaut/kit/router'
+import { setRouterPathnamePrefix } from '@sursaut/kit'
 import '@picocss/pico/css/pico.min.css'
 import '@sursaut/ui/styles/sizeable.sass'
 import './styles/docs.sass'

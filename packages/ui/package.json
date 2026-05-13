@@ -3,7 +3,11 @@
 	"version": "0.1.0",
 	"description": "Headless UI primitives for Sursaut applications",
 	"type": "module",
-	"sideEffects": false,
+	"types": "./dist/index.d.ts",
+	"sideEffects": [
+		"./dist/index.js",
+		"./dist/palette.js"
+	],
 	"keywords": [
 		"sursaut",
 		"headless",

@@ -1,6 +1,6 @@
 import type { Env } from '@sursaut/core'
 import { DisplayProvider, useDisplayContext } from '@sursaut/kit'
-import { Date as IntlDate, Number as IntlNumber } from '@sursaut/kit/intl'
+import { Date as IntlDate, Number as IntlNumber } from '@sursaut/kit'
 import { type ThemeValue, themeToggleModel } from '@sursaut/ui'
 import { reactive } from 'mutts'
 

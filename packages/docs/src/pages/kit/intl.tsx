@@ -1,6 +1,6 @@
 import { Code, Section } from '../../components'
 
-const numberExample = `import { Number } from '@sursaut/kit/intl'
+const numberExample = `import { Number } from '@sursaut/kit'
 
 // Renders formatted text nodes — no wrapper elements.
 <Number value={1234.56} />
@@ -15,7 +15,7 @@ const numberExample = `import { Number } from '@sursaut/kit/intl'
 <Number value={1000000} notation="compact" />
 // → "1M"`
 
-const dateExample = `import { Date } from '@sursaut/kit/intl'
+const dateExample = `import { Date } from '@sursaut/kit'
 
 <Date value={new Date()} dateStyle="long" />
 // → "February 11, 2026"
@@ -26,7 +26,7 @@ const dateExample = `import { Date } from '@sursaut/kit/intl'
 <Date value={new Date()} weekday="long" month="long" day="numeric" />
 // → "Wednesday, February 11"`
 
-const relativeTimeExample = `import { RelativeTime } from '@sursaut/kit/intl'
+const relativeTimeExample = `import { RelativeTime } from '@sursaut/kit'
 
 <RelativeTime value={-3} unit="day" />
 // → "3 days ago"
@@ -37,7 +37,7 @@ const relativeTimeExample = `import { RelativeTime } from '@sursaut/kit/intl'
 <RelativeTime value={-1} unit="month" numeric="auto" />
 // → "last month"`
 
-const listExample = `import { List } from '@sursaut/kit/intl'
+const listExample = `import { List } from '@sursaut/kit'
 
 <List value={['Alice', 'Bob', 'Charlie']} type="conjunction" />
 // → "Alice, Bob, and Charlie"
@@ -45,7 +45,7 @@ const listExample = `import { List } from '@sursaut/kit/intl'
 <List value={['Red', 'Blue']} type="disjunction" />
 // → "Red or Blue"`
 
-const pluralExample = `import { Plural } from '@sursaut/kit/intl'
+const pluralExample = `import { Plural } from '@sursaut/kit'
 
 <Plural value={1} one="1 item" other="{count} items" />
 // → "1 item"
@@ -53,7 +53,7 @@ const pluralExample = `import { Plural } from '@sursaut/kit/intl'
 <Plural value={5} one="1 item" other="{count} items" />
 // → "5 items"`
 
-const displayNamesExample = `import { DisplayNames } from '@sursaut/kit/intl'
+const displayNamesExample = `import { DisplayNames } from '@sursaut/kit'
 
 <DisplayNames value="FR" type="region" />
 // → "France"
@@ -61,13 +61,10 @@ const displayNamesExample = `import { DisplayNames } from '@sursaut/kit/intl'
 <DisplayNames value="en" type="language" />
 // → "English"`
 
-const localeConfig = `import { setLocaleResolver, resolveLocale } from '@sursaut/kit/intl'
+const localeConfig = `import { resolveLocale } from '@sursaut/kit'
 
 // By default, uses navigator.language.
 // Override with a custom resolver:
-setLocaleResolver(() => 'fr-FR')
-
-// All Intl components will now format in French.
 resolveLocale() // → "fr-FR"`
 
 export default function IntlPage() {
@@ -76,7 +73,7 @@ export default function IntlPage() {
 			<h1>Intl Components</h1>
 			<p>
 				Six Intl formatting components that render text nodes directly — no wrapper elements. Import
-				from <code>@sursaut/kit/intl</code>.
+				from <code>@sursaut/kit</code>.
 			</p>
 
 			<Section title="Number">

@@ -13,8 +13,6 @@ function ensureStableTypeEntrypoints() {
 	const entrypoints = [
 		['dom.d.ts', "export * from '../src/dom/index'\n"],
 		['node.d.ts', "export * from '../src/node/index'\n"],
-		['intl.d.ts', "export * from '../src/intl'\n"],
-		['models.d.ts', "export * from '../src/models'\n"],
 	]
 	return {
 		name: 'ensure-stable-type-entrypoints',
@@ -54,10 +52,6 @@ export default defineConfig({
         index: resolve(projectRootDir, 'src/index.ts'),
         dom: resolve(projectRootDir, 'src/dom/index.ts'),
         node: resolve(projectRootDir, 'src/node/index.ts'),
-        intl: resolve(projectRootDir, 'src/intl.tsx'),
-        models: resolve(projectRootDir, 'src/models.ts'),
-        'router/index': resolve(projectRootDir, 'src/router/index.ts'),
-        'router/logic': resolve(projectRootDir, 'src/router/logic.ts'),
       },
       formats: ['es', 'cjs'],
       fileName: (format, entryName) => `${entryName}.${format === 'es' ? 'js' : 'cjs'}`,

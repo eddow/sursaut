@@ -1,0 +1,18 @@
+{
+	"name": "test-kit",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Install-test for @sursaut/kit (packed artifact)",
+	"type": "module",
+	"scripts": {
+		"test": "vitest run",
+		"test:node": "node test-node.mjs"
+	},
+	"dependencies": {
+		"@sursaut/kit": "file:../../sandbox/packs/sursaut-kit-0.1.0.tgz"
+	},
+	"devDependencies": {
+		"jsdom": "^27.4.0",
+		"vitest": "^4.1.4"
+	}
+}

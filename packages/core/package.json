@@ -12,8 +12,7 @@
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "NODE_OPTIONS='--expose-gc' vitest run",
     "test:e2e": "playwright test --forbid-only",
-    "test:ui": "playwright test --ui",
-    "prepack": "rm -rf dist/demo dist/src/entry.d.ts && find dist -name '*.spec.d.ts' -delete"
+    "test:ui": "playwright test --ui"
   },
   "keywords": [
     "sursaut",

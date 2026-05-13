@@ -39,26 +39,6 @@
 			"types": "./dist/node.d.ts",
 			"import": "./dist/node.js",
 			"default": "./dist/node.js"
-		},
-		"./intl": {
-			"types": "./dist/intl.d.ts",
-			"import": "./dist/intl.js",
-			"default": "./dist/intl.js"
-		},
-		"./router": {
-			"types": "./dist/router/index.d.ts",
-			"import": "./dist/router/index.js",
-			"default": "./dist/router/index.js"
-		},
-		"./router/logic": {
-			"types": "./dist/router/logic.d.ts",
-			"import": "./dist/router/logic.js",
-			"default": "./dist/router/logic.js"
-		},
-		"./models": {
-			"types": "./dist/models.d.ts",
-			"import": "./dist/models.js",
-			"default": "./dist/models.js"
 		}
 	},
 	"files": [
@@ -74,7 +54,6 @@
 		"run:e2e": "pnpm exec vite --config tests/e2e/vite.config.ts --host=127.0.0.1 --port=5277 --strictPort",
 		"test:e2e": "playwright test",
 		"perf:check": "VITE_PERF=true pnpm exec playwright test tests/e2e/router.test.ts -g \"route perf measures stay within sandbox expectations\"",
-		"prepack": "find dist -name '*.spec.d.ts' -delete 2>/dev/null; true",
 		"perf": "VITE_PERF=true VITE_PERF_LOG=true pnpm run test:e2e"
 	},
 	"dependencies": {

@@ -4,7 +4,7 @@
  * API routing is handled separately by the `expose` system.
  */
 
-import { type RouteMatch, routeMatcher } from '@sursaut/kit/router/logic'
+import { type RouteMatch, routeMatcher } from '@sursaut/kit'
 import type { Context, MiddlewareHandler } from 'hono'
 import { Hono } from 'hono'
 import { enableSSR, setRouteRegistry } from '../lib/http/client.js'

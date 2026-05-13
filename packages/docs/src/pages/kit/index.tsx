@@ -43,16 +43,16 @@ const storedExample = `import { stored } from '@sursaut'
 const theme = stored('theme', 'light')
 theme.value = 'dark' // saved to localStorage['theme']`
 
-const intlExample = `import { IntlNumber, IntlDate, IntlRelativeTime } from '@sursaut/kit/intl'
+const intlExample = `import { Number, Date, RelativeTime } from '@sursaut/kit'
 
 // Intl components render formatted text nodes — no wrapper elements.
-<IntlNumber value={1234.56} style="currency" currency="EUR" />
+<Number value={1234.56} style="currency" currency="EUR" />
 // → "€1,234.56"
 
-<IntlDate value={new Date()} dateStyle="long" />
+<Date value={new Date()} dateStyle="long" />
 // → "February 10, 2026"
 
-<IntlRelativeTime value={-3} unit="day" />
+<RelativeTime value={-3} unit="day" />
 // → "3 days ago"`
 
 export default function KitPage() {

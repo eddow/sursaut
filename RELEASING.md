@@ -29,6 +29,34 @@ pnpm run release:verify
 
 `release:verify` runs `pnpm pack` for each publishable package into `sandbox/packs/` (inspect tarballs before publishing).
 
+### Install-test verification (optional but recommended)
+
+After `release:verify`, verify each packed `.tgz` installs and works correctly:
+
+```bash
+# @sursaut/core
+cd install-test/core
+npm install
+node test-node.mjs
+
+# @sursaut/kit
+cd ../kit
+npm install
+npm test
+npm run test:node
+
+# @sursaut/ui
+cd ../ui
+npm install
+npm test
+npm run test:node
+
+# pure-glyf
+cd ../pure-glyf
+npm install
+npm test
+```
+
 ## Publish order
 
 Internal dependency graph — publish in this order (or use a single workspace publish so `pnpm` can order by dependencies):
