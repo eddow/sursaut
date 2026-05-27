@@ -53,7 +53,8 @@
 		"./src/*": "./src/*"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"src"
 	],
 	"scripts": {
 		"dev": "vite",

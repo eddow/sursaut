@@ -135,7 +135,7 @@ export default defineConfig({
 		emptyOutDir: !isWatch,
 		target: 'esnext',
 		minify: false,
-		sourcemap: 'inline'
+		sourcemap: true
 	},
 	test: {
 		environment: 'jsdom',

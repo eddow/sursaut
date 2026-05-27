@@ -18,7 +18,8 @@
 		"*.css"
 	],
 	"files": [
-		"dist"
+		"dist",
+		"src"
 	],
 	"scripts": {
 		"build": "pnpm run build:js && pnpm run build:css",

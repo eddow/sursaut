@@ -47,12 +47,18 @@
 	},
 	"files": [
 		"dist",
+		"src",
 		"README.md",
 		"LLM.md"
 	],
+	"publishConfig": {
+		"access": "public"
+	},
 	"scripts": {
 		"build": "vite build",
 		"demo": "tsc --project demo/tsconfig.json && vite --port 5270",
+		"prepack": "pnpm build",
+		"prepublishOnly": "pnpm type-check && pnpm test",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:e2e": "playwright test",

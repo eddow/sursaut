@@ -68,6 +68,6 @@ export default defineConfig({
       },
       external: ['vite', 'node:fs', 'node:path', /^@sursaut\/core/, /^@sursaut\/ui/]
     },
-    sourcemap: 'inline'
+    sourcemap: true
   }
 });

@@ -104,6 +104,10 @@ See [docs/components.md](./docs/components.md).
 
 See [docs/directives.md](./docs/directives.md).
 
+### Palette
+
+The palette APIs are published because they are useful in Sursaut applications today, but they should be considered experimental. The command/editor surface is still evolving and the tool is not finished enough to treat as a stable design target.
+
 ### Topic guides
 
 - [Button](./docs/button.md)
