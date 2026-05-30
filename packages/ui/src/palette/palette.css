@@ -286,3 +286,52 @@
 .toolbar-border.palette-vertical > .toolbar-track > .toolbar-track-slot > .toolbar {
 	min-inline-size: 2.5rem;
 }
+
+/* ── Drawer Popup ── */
+
+.sursaut-palette-drawer__overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 210;
+}
+
+.sursaut-palette-drawer__trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	justify-content: flex-start;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.sursaut-palette-drawer__popup {
+	position: fixed;
+	z-index: 211;
+	padding: 0.25rem;
+	border: 1px solid rgba(148, 163, 184, 0.38);
+	border-radius: 10px;
+	background: rgba(15, 23, 42, 0.95);
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+	max-width: min(80vw, 28rem);
+	max-height: min(70vh, 24rem);
+	overflow-y: auto;
+	overflow-x: hidden;
+}
+
+/* Suppress toolbar ::before overflow inside popups (avoids phantom scrollbar) */
+.sursaut-palette-drawer__popup .toolbar::before {
+	content: none;
+}
+
+.sursaut-palette-drawer__popup.is-vertical .toolbar {
+	flex-direction: column;
+	align-items: stretch;
+}
+
+.sursaut-palette-drawer__popup.is-horizontal .toolbar {
+	flex-direction: row;
+}
+
+.sursaut-palette-drawer__popup .toolbar-item-space {
+	display: none;
+}

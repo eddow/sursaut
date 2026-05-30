@@ -37,6 +37,12 @@ export {
 	ToolbarBorder,
 	ToolbarTrack,
 } from './components'
+export {
+	createPaletteDrawerEditor,
+	type PaletteDrawerEditorOptions,
+	type PaletteDrawerIconRenderer,
+	paletteDefaultDrawerEditor,
+} from './drawer-editor'
 export { createPaletteKeys, normalizePaletteKeystroke, paletteKeystrokeFromEvent } from './keys'
 export {
 	hydratePaletteLayout,

@@ -291,7 +291,35 @@ export type PaletteToolbarItem<
 > = PaletteToolToolbarItem<TTool, TEditor, TConfig> | PaletteEditorOnlyToolbarItem<TEditor, TConfig>
 
 /**
- * Toolbar item that opens a child toolbar track perpendicularly from the parent toolbar.
+ * Toolbar item that opens a child toolbar track **perpendicular** to its parent.
+ *
+ * ## Perpendicular-direction contract
+ *
+ * The drawer editor receives the **parent** axis via `PaletteEditorContext.surface.axis`.
+ * The editor implementation is responsible for computing the child direction by
+ * **inverting** the parent axis:
+ *
+ * | Parent axis (`surface.axis`) | Child axis (drawer popup) |
+ * |---|---|
+ * | `'horizontal'` | `'vertical'` |
+ * | `'vertical'` | `'horizontal'` |
+ *
+ * The region hint for the child toolbar should also be set accordingly so that
+ * **nested drawers** continue the pattern — a drawer inside a vertical popup opens
+ * horizontally, and vice versa.
+ *
+ * ## Nesting
+ *
+ * Because each drawer's `toolbar` is an independent `PaletteToolbar`, its items can
+ * also be `drawer`-typed, producing arbitrarily deep nested sub-menus. Each level
+ * inverts its parent's axis.
+ *
+ * ## Scope propagation
+ *
+ * The parent `PaletteScope` (containing the `palette` instance and parent `region`)
+ * must be propagated into the popup root — either via `latch()` env or an `<env>`
+ * component — so the child `Toolbar` can resolve tools and nested drawers can read
+ * their own `surface.axis`.
  */
 export type PaletteDrawerToolbarItem<
 	TEditor extends string = string,
@@ -318,7 +346,7 @@ export type PaletteDrawerToolbarItem<
 		 */
 		readonly label?: string
 		/**
-		 * Optional hint text for accessibility.
+		 * Optional hint text (used as tooltip / aria-label when label is suppressed).
 		 */
 		readonly hint?: string
 		/**
@@ -330,7 +358,7 @@ export type PaletteDrawerToolbarItem<
 		 */
 		readonly open?: 'click' | 'hover' | 'press'
 		/**
-		 * Placement of the drawer relative to the trigger.
+		 * Placement of the drawer popup relative to the trigger element.
 		 */
 		readonly placement?: 'start' | 'center' | 'end'
 	} & TConfig
@@ -338,6 +366,12 @@ export type PaletteDrawerToolbarItem<
 
 /**
  * State for a drawer toolbar item.
+ *
+ * Carries both the **parent** axis/region and the derived **child** axis
+ * (perpendicular to parent) so that nested drawer levels need not recompute
+ * direction from scratch.
+ *
+ * @see PaletteDrawerToolbarItem for the perpendicular-direction contract.
  */
 export type PaletteDrawerState = {
 	/**
@@ -441,6 +475,17 @@ export type PaletteOf<TSchema extends PaletteSchema = PaletteSchema> = Palette<T
 
 /**
  * Rendering scope shared across palette editors and layout components.
+ *
+ * ## Drawer / popup propagation
+ *
+ * When a drawer editor creates a portal (e.g. via `latch()`), the `palette`
+ * and `region` entries must be propagated to the new root scope so that:
+ *
+ * - The child `<Toolbar>` can resolve tools via `palette.tool()`.
+ * - Nested drawer editors receive a valid `surface.axis` derived from `region`
+ *   (a `'left'`/`'right'` region yields `'vertical'`, `'top'`/`'bottom'` yields `'horizontal'`).
+ *
+ * @see PaletteDrawerToolbarItem for the perpendicular-direction contract.
  */
 export type PaletteScope<TSchema extends PaletteSchema = PaletteSchema> = Record<
 	string,
@@ -472,11 +517,33 @@ export interface PaletteEditorFlags {
 
 /**
  * Axis constraint for palette surface orientation.
+ *
+ * - `'horizontal'` — items laid out left-to-right (e.g. top/bottom toolbar borders).
+ * - `'vertical'` — items laid out top-to-bottom (e.g. left/right toolbar borders).
+ * - `'both'` — no constraint (used for editor capability declarations).
  */
 export type PaletteSurfaceAxis = 'horizontal' | 'vertical' | 'both'
 
 /**
  * Context describing the surface where an item is rendered.
+ *
+ * ## Role in the perpendicular-direction contract
+ *
+ * `PaletteSurfaceContext` carries the **parent** axis into every editor via
+ * `PaletteEditorContext.surface`. The `axis` is derived from `PaletteScope.region`:
+ *
+ * | `region` | `axis` |
+ * |---|---|
+ * | `'top'`, `'bottom'` | `'horizontal'` |
+ * | `'left'`, `'right'` | `'vertical'` |
+ * | `undefined` (popup root) | `'horizontal'` (default) |
+ *
+ * For drawer editors, the child toolbar popup direction must **invert** this axis.
+ * For popups that are themselves created by a drawer (nested sub-menus), the
+ * `PaletteScope.region` must be set on the popup root so the inversion continues
+ * correctly at each depth level.
+ *
+ * @see PaletteDrawerToolbarItem for the full perpendicular-direction contract.
  */
 export type PaletteSurfaceContext = {
 	readonly axis: PaletteSurfaceAxis
@@ -509,6 +576,16 @@ export type PaletteEditorCapability = {
 
 /**
  * Context received by palette editors and configurators.
+ *
+ * ## Drawer editors
+ *
+ * When the item has `editor: 'drawer'`, the editor receives this context and
+ * must open a child toolbar whose direction is **perpendicular** to
+ * `surface.axis`. The child toolbar's scope must propagate `palette` and set
+ * `region` so nested drawers inherit the correct surface axis.
+ *
+ * @see PaletteDrawerToolbarItem for the perpendicular-direction contract.
+ * @see PaletteSurfaceContext for axis derivation from region.
  */
 export interface PaletteEditorContext<
 	TTool extends PaletteAnyTool | undefined = PaletteAnyTool | undefined,
@@ -525,6 +602,8 @@ export interface PaletteEditorContext<
 	readonly tool: TTool
 	/**
 	 * The rendering scope.
+	 *
+	 * For drawer editors, propagate `palette` and `region` to the popup root.
 	 */
 	readonly scope: PaletteScope<TSchema>
 	/**
@@ -533,6 +612,9 @@ export interface PaletteEditorContext<
 	readonly flags: PaletteEditorFlags
 	/**
 	 * The surface context (axis and region) for axis-aware configuration.
+	 *
+	 * Supplies the **parent** axis — drawer editors must invert it for the
+	 * child toolbar direction.
 	 */
 	readonly surface?: PaletteSurfaceContext
 }

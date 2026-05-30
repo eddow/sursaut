@@ -104,3 +104,85 @@ A package may import from its own `src/` directory (e.g., `@sursaut/core` import
 ## Reconciler Gotchas
 1. **`style` string attribute silently cleared**: Setting `style` as a plain string prop (e.g., `style={\`color: ${color}\`}`) results in `style=""` in the DOM — the reconciler clears it. Workaround: set CSS custom properties via `use` directive (`el.style.setProperty('--var', value)`) and reference via `var(--var)` in CSS. Needs investigation in `attachAttribute`/`setHtmlProperty` for how `style` strings are reconciled. Reported in mARC #general (msg id 9).
 2. **Don't double-wrap in `processChildren`**: `renderChild` must return `renderer.render(scope)` array results directly — NOT wrapped in another `processChildren()`. `render()` already returns a `processChildren` result for components/fragments. Double-wrapping stores a reactive array inside a reactive array. When the inner one is replaced, mutts' `recursiveTouching` (same prototype → recursive diff path) swallows the identity-change notification, so the outer `flattenNodes` lift is never notified and `reconcile` never updates the DOM.
+
+## Palette system (`packages/ui/src/palette/`)
+
+### Overview
+
+The palette is a generic, editor-pluggable toolbar framework. It provides the layout, drag & drop, key bindings, command box, and serialization. Concrete applications (e.g. Anarkai) provide tools, editor implementations, visual icons, and drawer logic.
+
+### Core types
+
+See `types.ts` for full definitions.
+
+- `Palette` — central instance holding tools, editors, keys, serialization.
+- `PaletteToolbarItem` — a single toolbar slot. May bind a tool (`PaletteToolToolbarItem`) or be editor-only (`PaletteEditorOnlyToolbarItem`, e.g. drawer). Tool-bound items pass a `tool` string resolved by `palette.tool()`.
+- `PaletteDrawerToolbarItem` — an item whose `editor` is `'drawer'` and which carries a child `toolbar: PaletteToolbar`.
+- `PaletteToolbar` — `TItem[]` — an ordered flat list of items.
+- `PaletteTrack` — `{ space: number, toolbar }[]` — a row of toolbars separated by normalized spacing.
+- `PaletteBorder` — `PaletteTrack[]` — a stack of tracks in one region (top/left/right/bottom).
+
+### Editor system
+
+Editors are registered per tool family (`run`, `enum`, `number`, `boolean`, `item`) and per variant (`button`, `select`, `segmented`, `cycle`, `stars`, `toggle`, `commandBox`, `drawer`). Each entry in the registry provides:
+
+- `editor` — render function receiving `PaletteEditorContext`
+- `configure` — optional inspector/configurator render function
+- `flags` — layout hints (`footprint`)
+
+The `item` family is for editor-only items (no tool bound). Sursaut ships no built-in editor for `drawer` — the drawer editor implementation is the consumer's responsibility.
+
+### PaletteEditorContext
+
+Passed to every editor. Contains:
+
+| Field | Purpose |
+|---|---|
+| `item` | The toolbar item being rendered |
+| `tool` | The resolved tool instance (or `undefined` for editor-only items) |
+| `scope` | `PaletteScope` with `palette` instance and `region` |
+| `surface` | `PaletteSurfaceContext` — carries the **parent** axis and region |
+| `flags` | Layout hints from the editor registry |
+
+### Perpendicular-direction contract (drawers)
+
+When an item has `editor: 'drawer'`, the editor must open a child toolbar whose direction is **perpendicular** to the parent.
+
+**Parent axis → child axis:**
+
+- `surface.axis === 'horizontal'` → child popup opens **vertical**
+- `surface.axis === 'vertical'` → child popup opens **horizontal**
+
+The parent axis is derived from `scope.region`:
+
+| `region` | `axis` |
+|---|---|
+| `'top'`, `'bottom'` | `'horizontal'` |
+| `'left'`, `'right'` | `'vertical'` |
+| `undefined` (portal root) | `'horizontal'` (default) |
+
+**Scope propagation requirement:** When creating a popup portal (via `latch()`), the editor must propagate `scope.palette` and set `scope.region` in the new root so nested drawers inherit the correct axis. Without `palette`, the child `<Toolbar>` component throws `"No palette to expose"`.
+
+**Nesting:** Since each drawer's `toolbar` is a standalone `PaletteToolbar`, its items may themselves be drawers — producing arbitrarily deep nested sub-menus, each level inverting the previous level's axis.
+
+**Refer to:** `PaletteDrawerToolbarItem`, `PaletteDrawerState`, `PaletteSurfaceContext`, `PaletteEditorContext` JSDoc in `types.ts`.
+
+### Scope propagation in practice
+
+```ts
+// Inside a drawer editor's popup effect:
+const drawerEnv = Object.create(rootEnv) as Record<string, unknown>
+drawerEnv.palette = context.scope.palette
+drawerEnv.region = childDir === 'vertical' ? 'left' : 'top'
+const stopLatch = latch(host, popupContent, drawerEnv)
+```
+
+### Toolbar component
+
+`<Toolbar>` renders a flat item list with inter-item drop-zone spacers. It calls `palette.renderEditor(item, tool, scope)` for each item. **Requires** `scope.palette` — throws `"No palette to expose"` otherwise.
+
+### Layout serialization
+
+- `serializePaletteLayout(border)` — serializes a `PaletteBorder` to JSON-safe structure.
+- `hydratePaletteLayout(serialized, border)` — restores a serialized layout into a reactive border.
+- **Note:** Serialization currently does not explicitly preserve nested drawer toolbars. If round-tripping drawer contents is needed, update the serialization layer.
