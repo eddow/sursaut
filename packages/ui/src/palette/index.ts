@@ -42,6 +42,7 @@ export {
 	type PaletteDrawerEditorOptions,
 	type PaletteDrawerIconRenderer,
 	paletteDefaultDrawerEditor,
+	paletteDrawerCollapse,
 } from './drawer-editor'
 export { createPaletteKeys, normalizePaletteKeystroke, paletteKeystrokeFromEvent } from './keys'
 export {

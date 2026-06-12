@@ -163,7 +163,9 @@ export class SursautElement {
 	) {}
 	get guarded() {
 		const guards = this.meta?.guards
-		return guards && (guards.condition || guards.if || guards.when || guards.else || guards.pick)
+		return (
+			guards && (guards.condition != null || guards.if || guards.when || guards.else || guards.pick)
+		)
 	}
 	shouldRender(
 		alreadyRendered: boolean,
@@ -185,7 +187,7 @@ export class SursautElement {
 		if (this.guarded) {
 			const meta = guards!
 			if (meta.else && alreadyRendered) return false
-			if (meta.condition && !collapse(meta.condition)) return false
+			if (meta.condition != null && !collapse(meta.condition)) return false
 
 			if (meta.when)
 				for (const [key, arg] of Object.entries(meta.when)) {

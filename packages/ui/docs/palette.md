@@ -14,27 +14,31 @@ It is **not** a small collection of isolated models anymore. The current API is 
 ```ts
 import {
 	beginPaletteCatalogInsertDrag,
+	createPaletteDrawerEditor,
 	createPaletteKeys,
 	Ide,
 	isEditing,
 	notifyPaletteCatalogNativeDragStarted,
-	Parking,
 	Palette,
 	paletteAddItemEntries,
 	paletteCatalogEntries,
 	paletteCommandBoxModel,
 	paletteCommandEntries,
+	paletteDefaultDrawerEditor,
 	paletteDerivedVariants,
 	paletteEnumSubsetValues,
 	palettes,
 	paletteToolbarItemFromCatalogPayload,
 	PALETTE_CATALOG_DRAG_MIME,
+	Parking,
 	parsePaletteCatalogDragPayload,
 	serializePaletteCatalogDragPayload,
 	Toolbar,
 	ToolbarBorder,
 	ToolbarTrack,
 	type PaletteConfig,
+	type PaletteDrawerEditorOptions,
+	type PaletteDrawerIconRenderer,
 	type PaletteItem,
 	type PaletteSchema,
 	type PaletteToolbarItem,
@@ -533,6 +537,142 @@ In practice, an edit toggle button typically alternates:
 ```
 
 When edit mode is active, toolbar items become draggable, item insertion zones appear, and clicking a toolbar item opens its configuration panel (see "Editors and configurators" above).
+
+## Drawer editor
+
+The `drawer` editor variant (`editor: 'drawer'`) is an **editor-only** item (no tool bound) that renders a trigger button opening a **perpendicular** child toolbar popup.
+
+### Perpendicular-direction contract
+
+The drawer editor reads the **parent** toolbar axis from `PaletteEditorContext.surface.axis` (derived from the scope's `region`) and computes the child popup direction by **inverting** it:
+
+| Parent axis | Child popup direction |
+|---|---|
+| `'horizontal'` | `'vertical'` |
+| `'vertical'` | `'horizontal'` |
+
+Nested drawers (drawer inside drawer popup) continue this pattern at each depth level. To enable this, the editor must propagate the parent `PaletteScope` (containing `palette` and a derived `region`) into the popup root so the child `Toolbar` can resolve tools and nested drawers can read their own `surface.axis`.
+
+### Type: `PaletteDrawerToolbarItem`
+
+```ts
+type PaletteDrawerToolbarItem = {
+  readonly editor: 'drawer'
+  readonly toolbar: PaletteToolbar    // child items
+  config?: {
+    readonly icon?: string | JSX.Element | (() => JSX.Element)
+    readonly label?: string
+    readonly hint?: string
+    readonly tone?: string
+    readonly open?: 'click' | 'hover' | 'press'
+    readonly placement?: 'start' | 'center' | 'end'
+  }
+}
+```
+
+The `toolbar` field holds the child items rendered inside the popup. These items can themselves be drawer items for arbitrarily deep nesting.
+
+### Factory: `createPaletteDrawerEditor()`
+
+Sursaut ships a generic drawer editor factory in `drawer-editor.tsx`, exported from `@sursaut/ui/palette`:
+
+```ts
+import {
+  createPaletteDrawerEditor,
+  type PaletteDrawerEditorOptions,
+  type PaletteDrawerIconRenderer,
+} from '@sursaut/ui/palette'
+```
+
+`createPaletteDrawerEditor(options?)` returns a `PaletteEditorSpec` for the `"drawer"` variant. Options:
+
+| Option | Type | Purpose |
+|---|---|---|
+| `renderIcon` | `(icon) => JSX.Element` | Consumer-specific icon renderer |
+| `renderTrigger` | `(opts) => JSX.Element` | Custom trigger button interior |
+| `triggerStyle` | `Record<string, string>` | Inline styles for the trigger button |
+| `triggerClass` | `string` | CSS class for the trigger (default `sursaut-palette-drawer__trigger`) |
+| `overlayClass` | `string` | CSS class for the fixed backdrop overlay |
+| `popupClass` | `string` | CSS class for the popup container |
+| `popupExtraClass` | `(axis) => string` | Per-axis extra class (e.g. adapter-specific theme) |
+| `portalContainer` | `HTMLElement` | Target for the portal root (default `document.body`) |
+
+A zero-config default is also exported:
+
+```ts
+import { paletteDefaultDrawerEditor } from '@sursaut/ui/palette'
+// Equivalent to createPaletteDrawerEditor() with no custom options
+```
+
+### Consumer usage (Anarkai example)
+
+Register the drawer editor in the `item` family:
+
+```ts
+editors: {
+  item: {
+    drawer: createPaletteDrawerEditor({
+      renderIcon: myIconFn,
+      triggerClass: 'my-drawer-trigger',
+      renderTrigger({ icon, label, hint }) { ... },
+    }),
+  },
+}
+```
+
+Adapters that need custom styling (Pico, etc.) should use the factory with their own `renderIcon`, CSS classes, and `renderTrigger`.
+
+### Scope propagation
+
+The editor creates a new root scope for the popup via `latch()`'s `env` parameter:
+
+```ts
+const drawerEnv = Object.create(rootEnv)
+drawerEnv.palette = context.scope.palette
+drawerEnv.region = childDir === 'vertical' ? 'left' : 'top'
+```
+
+Without `palette`, the child `Toolbar` throws `"No palette to expose"`. Without `region`, nested drawers inside the popup won't know their parent axis.
+
+### CSS
+
+Base CSS for drawer components is included in `palette.css`:
+
+- `.sursaut-palette-drawer__overlay` — fixed full-viewport backdrop (z-index 210)
+- `.sursaut-palette-drawer__trigger` — trigger button layout
+- `.sursaut-palette-drawer__popup` — popup container with max-width/height and scroll
+- `.sursaut-palette-drawer__popup.is-vertical` / `is-horizontal` — flex-direction control
+- `.sursaut-palette-drawer__popup .toolbar::before { content: none }` — suppresses the editing hover highlight that would cause phantom scrollbars inside the popup
+
+### Collapse signal
+
+When a consumer wants to programmatically close all open drawer popups (e.g. after
+a variant is picked), bump the shared reactive signal:
+
+```ts
+import { paletteDrawerCollapse } from '@sursaut/ui/palette'
+
+// In a tool setter, keybinding handler, or anywhere a selection completes:
+paletteDrawerCollapse.version++
+```
+
+Every drawer created by `createPaletteDrawerEditor` watches `paletteDrawerCollapse`
+at **component scope** (not inside the popup effect), so all open drawers react
+in the same synchronous tick — regardless of nesting depth.
+
+The signal is also available as a plain reactive object for consumers that prefer
+to import it directly:
+
+```ts
+import { paletteDrawerCollapse } from '@sursaut/ui/palette'
+// { version: number } — bumping version closes all drawers
+```
+
+### See also
+
+- `PaletteDrawerToolbarItem`, `PaletteDrawerState` — full JSDoc in `types.ts`
+- `PaletteEditorContext`, `PaletteSurfaceContext` — per-axis context for editor implementations
+- `sursaut/LLM.md` — drawer editor overview in the LLM cheat sheet
 
 ## Notes
 

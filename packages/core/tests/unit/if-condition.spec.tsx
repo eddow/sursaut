@@ -380,4 +380,26 @@ describe('if={condition} on intrinsic elements', () => {
 		expect(container.querySelector('.b-properties')).toBeNull()
 		expect(container.querySelector('.a-properties')?.textContent).toBe('1')
 	})
+
+	it('hides element when if={} is a plain const false value', () => {
+		const flag = false
+		unmount = latch(
+			container,
+			<div>
+				<span if={flag} class="target">visible</span>
+			</div>
+		)
+		expect(container.querySelector('.target')).toBeNull()
+	})
+
+	it('shows element when if={} is a plain const true value', () => {
+		const flag = true
+		unmount = latch(
+			container,
+			<div>
+				<span if={flag} class="target">visible</span>
+			</div>
+		)
+		expect(container.querySelector('.target')).not.toBeNull()
+	})
 })
