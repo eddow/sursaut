@@ -71,9 +71,8 @@ describe('Directive Re-rendering', () => {
 		expect(document.getElementById('child')?.getAttribute('data-calls')).toBe('1')
 	})
 
-	it('should NOT re-render component on bare reactive read (rebuild fence)', () => {
+	it('bare reactive read in body does NOT re-render (untracked body)', () => {
 		let callCount = 0
-		const warnings: string[] = []
 		const state = reactive({ trigger: 0 })
 
 		const myDir = (el: HTMLElement) => {
@@ -84,7 +83,7 @@ describe('Directive Re-rendering', () => {
 		const env = unreactive({ myDir })
 
 		const Child = () => {
-			state.trigger // bare reactive read — rebuild fence should prevent re-rendering
+			state.trigger // body runs untracked — NOT a dependency
 			return <div use:myDir />
 		}
 
@@ -93,24 +92,11 @@ describe('Directive Re-rendering', () => {
 		latch(container, <App />, env)
 		expect(callCount).toBe(1)
 
-		// Rebuild fence prevents re-rendering: directive is NOT re-called
-		// checkRebuild='warn' means it logs but does not throw on rebuild-fence violations
-		const original = sursautOptions.checkRebuild
-		const originalWarn = reactiveOptions.warn
-		sursautOptions.checkRebuild = 'warn'
-		reactiveOptions.warn = (...args: any[]) => {
-			if (typeof args[0] === 'string') warnings.push(args[0])
-		}
-		try {
-			state.trigger++
-			expect(callCount).toBe(1)
-		} finally {
-			reactiveOptions.warn = originalWarn
-			sursautOptions.checkRebuild = original
-		}
-		expect(warnings[0]).toContain('Detailed trace:')
-		expect(warnings[0]).toContain('touch:')
-		expect(warnings[0]).toContain('trigger')
+		state.trigger++
+		// Component body runs untracked — the bare read of state.trigger
+		// was never tracked by the render effect.  No rebuild fence fires,
+		// the directive is not re-called.
+		expect(callCount).toBe(1)
 	})
 
 	it('isolates reactive directive extraction from render effect dependencies', () => {

@@ -4,6 +4,8 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
+      '@sursaut/core/node': path.resolve(__dirname, '../core/src/node/index.ts'),
+      '@sursaut/core': path.resolve(__dirname, '../core/src'),
       'sursaut-ts/server': path.resolve(__dirname, '../core/src/node/index.ts'),
       'sursaut-ts': path.resolve(__dirname, '../core/src'),
       'sursaut-ui': path.resolve(__dirname, '../ui/src'),

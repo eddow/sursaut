@@ -39,6 +39,9 @@ export type NodeDesc = Node | string | number
 export type Child = Node | string | number | null | undefined | SursautElement
 export type Children = Child | readonly Children[] | ReactiveProp<Children>
 
+/** Marker on sursaut internal reactive objects — dependencyHook skips them. */
+const internalMarker = Symbol('sursaut.internal')
+
 function arrayed<T>(v: T | readonly T[]): readonly T[] {
 	return Array.isArray(v) ? v : [v as T]
 }
@@ -173,7 +176,9 @@ export class SursautElement {
 		picks: Record<string, Set<unknown>>
 	): boolean | undefined {
 		const rv = this.#shouldRender(alreadyRendered, env, picks)
-		this.#rendered ??= reactive({ value: true })
+		this.#rendered ??= reactive(
+			Object.assign({ value: true } as { value: boolean }, { [internalMarker]: true })
+		)
 		this.#rendered.value = rv !== false
 		return rv
 	}
@@ -284,32 +289,50 @@ Note: "à la morph" means it can be attended - if it uses array-diff
 		}
 
 		let partial: Node | readonly Node[] | undefined
-		const stopRender = effect`render:${tagName}`(({ reaction }) => {
-			if (this.#rendered?.value === false) {
-				partial = []
-				return
+		const stopRender = effect(
+			({ reaction }) => {
+				if (this.#rendered?.value === false) {
+					partial = []
+					return
+				}
+				if (reaction) {
+					if (!sursautOptions.checkRebuild) return
+					const reasons =
+						reaction === true ? ['(no dependency chain available)'] : formatReasonText(reaction)
+					const msg = [
+						`[sursaut] Rebuild fence: <${tagName}> has reactive dependencies that changed, but re-running the component body is forbidden (would destroy local state and risk infinite loops).`,
+						'Triggered by:',
+						...reasons,
+						'\nMove the reactive read into a child element, an effect, or a directive instead.',
+					].join('\n')
+					if (sursautOptions.checkRebuild === 'error') throw new DynamicRenderingError(msg)
+					reactiveOptions.warn(msg)
+				} else {
+					partial = this.produce(env)
+					if (!partial) throw new DynamicRenderingError('Renderer returned no content')
+					this.applyDirectives(partial, env)
+				}
+				return () => {
+					// TODO: mark the node as destroyed and throw when trying to re-use it
+				}
+			},
+			{
+				name: `render:${tagName}`,
+				dependencyHook: sursautOptions.checkRebuild
+					? (obj: object, prop: PropertyKey) => {
+							// Skip sursaut's internal reactive objects
+							if ((obj as any)[internalMarker]) return
+							const msg =
+								`[sursaut] Prop read in render effect <${tagName}> —` +
+								` will trigger rebuild fence when this changes. ` +
+								`Reading '${String(prop)}'. ` +
+								`Use getters/effects instead of bare reads in the component body.`
+							if (sursautOptions.checkRebuild === 'error') throw new DynamicRenderingError(msg)
+							reactiveOptions.warn(msg)
+						}
+					: undefined,
 			}
-			if (reaction) {
-				if (!sursautOptions.checkRebuild) return
-				const reasons =
-					reaction === true ? ['(no dependency chain available)'] : formatReasonText(reaction)
-				const msg = [
-					`[sursaut] Rebuild fence: <${tagName}> has reactive dependencies that changed, but re-running the component body is forbidden (would destroy local state and risk infinite loops).`,
-					'Triggered by:',
-					...reasons,
-					'\nMove the reactive read into a child element, an effect, or a directive instead.',
-				].join('\n')
-				if (sursautOptions.checkRebuild === 'error') throw new DynamicRenderingError(msg)
-				reactiveOptions.warn(msg)
-			} else {
-				partial = this.produce(env)
-				if (!partial) throw new DynamicRenderingError('Renderer returned no content')
-				this.applyDirectives(partial, env)
-			}
-			return () => {
-				// TODO: mark the node as destroyed and throw when trying to re-use it
-			}
-		})
+		)
 		perf?.mark(`render:${tagName}:end`)
 		perf?.measure(`render:${tagName}`, `render:${tagName}:start`, `render:${tagName}:end`)
 

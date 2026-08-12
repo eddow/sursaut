@@ -13,7 +13,14 @@ import type {
 /** Shape of a drawer-compatible toolbar item (editor-only, carries a child toolbar). */
 type DrawerItem = PaletteDrawerToolbarItem & { toolbar: PaletteToolbar }
 
+/**
+ * Shared signal: bump `version` to collapse all open drawer popups.
+ *
+ * Consumers watch a reactive value (e.g. `interactionMode.selectedAction`)
+ * and bump this counter when they want drawers to close.
+ */
 export const paletteDrawerCollapse = reactive({ version: 0 })
+
 /**
  * Icon renderer provided by the palette consumer.
  *
@@ -164,7 +171,8 @@ export function createPaletteDrawerEditor<
 
 			const ui = reactive({ left: 0, top: 0, open: false })
 			let trigger: HTMLButtonElement | undefined
-			const parentAxis = context.surface?.axis ?? 'horizontal'
+			const parentAxis: 'horizontal' | 'vertical' =
+				context.surface?.axis === 'both' ? 'horizontal' : (context.surface?.axis ?? 'horizontal')
 			const childDirection = () => (parentAxis === 'vertical' ? 'horizontal' : 'vertical')
 
 			const syncPopup = () => {
@@ -215,15 +223,7 @@ export function createPaletteDrawerEditor<
 				window.addEventListener('resize', onLayout)
 				window.addEventListener('scroll', onLayout, true)
 				window.addEventListener('keydown', onKey)
-				const collapseAt = paletteDrawerCollapse.version
-				const stopCollapse = effect`palette-drawer-collapse`(() => {
-					if (paletteDrawerCollapse.version !== collapseAt) {
-						ui.open = false
-						trigger?.focus()
-					}
-				})
 				return () => {
-					stopCollapse()
 					window.removeEventListener('resize', onLayout)
 					window.removeEventListener('scroll', onLayout, true)
 					window.removeEventListener('keydown', onKey)

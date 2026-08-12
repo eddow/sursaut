@@ -28,13 +28,6 @@ export class ReactiveProp<T> {
 	}
 }
 export type PerhapsReactive<T> = T | ReactiveProp<T>
-/**
- * Collapse a PerhapsReactive<T> into its concrete T.
- * Like Schrödinger's box: the value is in superposition — it might be a
- * deferred computation (ReactiveProp from babel's r()) or already concrete.
- * Calling collapse() opens the box: if reactive, .get() is invoked (which
- * establishes tracking in a reactive context); if plain, returned as-is.
- */
 export const collapse = <T>(v: PerhapsReactive<T>): T => (v instanceof ReactiveProp ? v.get() : v)
 export const fromAttribute = Symbol('from attributes')
 export interface CompositeAttributesGuards {

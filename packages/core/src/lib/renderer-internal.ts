@@ -86,6 +86,25 @@ function hookRootedEventListeners() {
 	if (hooked) return hooked
 	const addEventListener = prototype.addEventListener
 	const removeEventListener = prototype.removeEventListener
+
+	// jsdom ≥ 27.4.0 enforces strict webidl brand checks that reject
+	// detached .call(this, …) on EventTarget.prototype methods.
+	// Probe with `document.createElement('div')` — this is what
+	// actually triggers jsdom's brand check for HTML elements.
+	// If it throws, skip patching entirely.
+	try {
+		addEventListener.call(
+			typeof document !== 'undefined'
+				? document.createElement('div')
+				: new globalThis.EventTarget!(),
+			'sursaut-probe',
+			() => {},
+			{ once: true }
+		)
+	} catch {
+		return
+	}
+
 	prototype[rootedEventListenerHook] = { addEventListener, removeEventListener }
 	prototype.addEventListener = function (
 		this: EventTarget,
@@ -137,13 +156,12 @@ export function listen(
 	listener: EventListener,
 	options?: boolean | AddEventListenerOptions
 ) {
-	const addEventListener = rootedEventListenerHooks?.addEventListener ?? target.addEventListener
-	const removeEventListener =
-		rootedEventListenerHooks?.removeEventListener ?? target.removeEventListener
 	const rooted = resolveRootedEventListener(target, type, listener, options, true)
-	addEventListener.call(target, type, rooted, options)
+	// Always use the target's own methods — never .call() on prototype
+	// methods, which breaks jsdom ≥ 27.4.0 strict webidl brand checks.
+	target.addEventListener(type, rooted, options)
 	return () => {
-		removeEventListener.call(target, type, rooted, options)
+		target.removeEventListener(type, rooted, options)
 	}
 }
 
@@ -180,7 +198,8 @@ export function setHtmlProperty(
 	value: any
 ): ScopedCallback | undefined {
 	const normalizedKey = key.toLowerCase()
-	const attributeKey = element instanceof SVGElement ? key : normalizedKey
+	const attributeKey =
+		typeof SVGElement !== 'undefined' && element instanceof SVGElement ? key : normalizedKey
 	const el = element as any
 	let deleter: ScopedCallback | undefined
 	try {
@@ -224,7 +243,7 @@ export function applyStyleProperties(element: Element, computedStyles: Record<st
 }
 
 function setElementClass(element: Element, cls: string) {
-	if (element instanceof SVGElement) {
+	if (typeof SVGElement !== 'undefined' && element instanceof SVGElement) {
 		element.setAttribute('class', cls)
 		return () => element.removeAttribute('class')
 	}
@@ -341,18 +360,10 @@ export function attachAttributes(
 		: attachAttributeValue(element, 'style', attributes.mergeStyles())
 
 	if (attributes.isReactive) {
-		// Each attribute gets its own independent effect via root() so it is
-		// detached from the render effect's ownership chain. This prevents:
-		// 1. The rebuild fence from firing when spread-sourced reactive state changes
-		// 2. Child effects being destroyed when a parent effect re-runs
-		// The entire key enumeration + per-key setup runs inside root() because
-		// attributes.keys collapses function layers which may read reactive state.
 		root`attachAttributes`(() => {
 			const ensureKey = (key: string) => {
 				if (key in cleanups) return
 				let value = attributes.get(key)
-				// If the attribute value dynamically comes from a reactive layer but is a plain scalar,
-				// wrap it in a ReactiveProp so `attachAttribute` tracks it.
 				if (!(value instanceof ReactiveProp) && typeof value !== 'function') {
 					const capturedKey = key
 					value = new ReactiveProp(() => attributes.get(capturedKey))
