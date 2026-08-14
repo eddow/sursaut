@@ -259,6 +259,36 @@ export function sursautBabelPlugin({
 		return !!binding && (binding.kind === 'let' || binding.kind === 'var')
 	}
 
+	// Wrap JSX expression-container children (e.g. `{expr}`) in `r(() => expr)` so the
+	// reactive read happens in a child effect rather than the render effect body.
+	// Applied to both JSXElement and JSXFragment children — without it, fragment
+	// children would read reactive props during the component body and trip the
+	// rebuild fence.
+	function wrapReactiveChildren(
+		path: NodePath<t.JSXElement | t.JSXFragment>,
+		state: SursautBabelPluginState
+	) {
+		const children = path.node.children as (
+			| t.JSXText
+			| t.JSXExpressionContainer
+			| t.JSXElement
+			| t.JSXFragment
+		)[]
+		for (let index = 0; index < children.length; index++) {
+			const child = children[index]
+			if (t.isJSXExpressionContainer(child)) {
+				const expression = child.expression
+				if (!t.isJSXEmptyExpression(expression)) {
+					const reactiveHelper = ensureCoreHelperIdentifier(t, path, state, 'r', true)
+					const arrowFunction = t.arrowFunctionExpression([], expression)
+					children[index] = t.jsxExpressionContainer(
+						t.callExpression(t.cloneNode(reactiveHelper), [arrowFunction])
+					)
+				}
+			}
+		}
+	}
+
 	return {
 		name: 'sursaut-babel',
 		visitor: {
@@ -268,30 +298,14 @@ export function sursautBabelPlugin({
 					'[bind] `bind:` label syntax was removed from @sursaut/core; use bind(...) directly'
 				)
 			},
-			JSXFragment(path: NodePath<t.JSXFragment>) {
+			JSXFragment(path: NodePath<t.JSXFragment>, state: SursautBabelPluginState) {
 				ensureImports(path, 'h', 'Fragment')
+				wrapReactiveChildren(path, state)
 			},
 			JSXElement(path: NodePath<JSXElement>, state: SursautBabelPluginState) {
 				ensureImports(path, 'h')
 				// Traverse all JSX children and attributes
-				for (let index = 0; index < path.node.children.length; index++) {
-					const child = path.node.children[index]
-					if (t.isJSXExpressionContainer(child)) {
-						const expression = child.expression
-						// Check if the expression is a reactive reference (e.g., `this.counter`)
-						if (!t.isJSXEmptyExpression(expression)) {
-							const reactiveHelper = ensureCoreHelperIdentifier(t, path, state, 'r', true)
-							// Rewrite `this.counter` into `() => this.counter`
-							const arrowFunction = t.arrowFunctionExpression(
-								[], // No args
-								expression // Body is `this.counter`
-							)
-							path.node.children[index] = t.jsxExpressionContainer(
-								t.callExpression(t.cloneNode(reactiveHelper), [arrowFunction])
-							)
-						}
-					}
-				}
+				wrapReactiveChildren(path, state)
 
 				// Also check props (e.g., `<Component prop={this.counter} />`)
 				if (t.isJSXOpeningElement(path.node.openingElement)) {

@@ -61,6 +61,18 @@ describe('spread attribute babel transform', () => {
 		expect(out).toMatch(/import\s*\{[^}]*\bFragment\b[^}]*\}.*from"@sursaut\/core"/)
 	})
 
+	it('wraps JSX fragment expression children in r() (rebuild-fence fix)', () => {
+		const out = transform(`<>{actionLabel(props.item.key, props.item.fallback)}</>`)
+		expect(out).toContain('_sursaut_r(()=>actionLabel(props.item.key,props.item.fallback))')
+		expect(out).not.toContain('actionLabel(props.item.key,props.item.fallback),')
+	})
+
+	it('wraps mixed fragment children (expression + element) in r()', () => {
+		const out = transform(`<>{expr}<span if={!props.item.last}> / </span></>`)
+		expect(out).toContain('_sursaut_r(()=>expr)')
+		expect(out).toContain('if:_sursaut_r(()=>!props.item.last)')
+	})
+
 	it('wraps multiple spreads in a single c() with multiple arguments', () => {
 		const out = transform(`<Comp value={state.count} {...counts[state.locale]} />`)
 		expect(out).toContain('_extends({value:_sursaut_r(()=>state.count,val=>state.count=val)},')

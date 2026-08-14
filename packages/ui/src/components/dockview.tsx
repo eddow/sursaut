@@ -340,14 +340,14 @@ export const Dockview = (
 	const tabMap = props.tabs
 	const onReadyCb = props.onReady
 	const onPanelErrorCb = props.onPanelError
-	const hasLayout =
-		layoutBinding instanceof ReactiveProp
-			? layoutBinding.get() !== undefined
-			: props.layout !== undefined
 
 	const initDockview = (_target: Node | readonly Node[]) => {
 		const element = (Array.isArray(_target) ? _target[0] : _target) as HTMLElement
 		if (dockviewApi) return // already initialized
+		const hasLayout =
+			layoutBinding instanceof ReactiveProp
+				? layoutBinding.get() !== undefined
+				: props.layout !== undefined
 		logDockview(debugLabel, 'init:start', {
 			hasLayout,
 			widgetNames: Object.keys(widgetMap),
