@@ -4,7 +4,7 @@
 
 ## `Dockview`
 
-A Dockview-backed layout component built on top of `dockview-core`.
+A Dockview-backed layout component built on top of `dockview`.
 
 ### Purpose
 
@@ -40,7 +40,7 @@ Use `Dockview` when you need:
 ### Notes
 
 - `Dockview` is a real component, not a model.
-- It bridges `dockview-core` into Sursaut.
+- It bridges `dockview` into Sursaut.
 - It supports external layout persistence through the `layout` prop.
 - Widgets receive both `params` and a shared reactive `context` object.
 

@@ -13,7 +13,10 @@ const tabOrder = (page: Page) =>
 
 test.describe('Dockview Demo', () => {
 	test.beforeEach(async ({ page }) => {
+		// Clear the demo's localStorage persistence for a deterministic start.
 		await page.goto('/dockview')
+		await page.evaluate(() => localStorage.removeItem('sursaut:dockview-demo'))
+		await page.reload()
 		await expect(dt(page, 'dockview-demo')).toBeVisible()
 		await expect(dt(page, 'dockview-api-state')).toContainText('API: ready')
 	})
@@ -140,5 +143,40 @@ test.describe('Dockview Demo', () => {
 		// Reset should restore both panels
 		await dt(page, 'dockview-reset-layout').click()
 		await expect(dt(page, 'dockview-panel-count')).toContainText('Panels: 2')
+	})
+
+	test('watermark overlay opens a panel from the empty state', async ({ page }) => {
+		// Close all panels via the active-close button until the watermark shows
+		await dt(page, 'dockview-close-active').click()
+		await expect(dt(page, 'dockview-panel-count')).toContainText('Panels: 1')
+		await dt(page, 'dockview-close-active').click()
+		await expect(dt(page, 'dockview-panel-count')).toContainText('Panels: 0')
+		await expect(dt(page, 'dockview-watermark')).toBeVisible()
+
+		await dt(page, 'dockview-watermark-open').click()
+		await expect(dt(page, 'dockview-panel-count')).toContainText('Panels: 1')
+		await expect(dt(page, 'dockview-watermark')).toBeHidden()
+	})
+
+	test('events log records panel add and active changes', async ({ page }) => {
+		await dt(page, 'dockview-add-counter').click()
+		await expect(dt(page, 'dockview-event-log')).toContainText('added counter-')
+		await expect(dt(page, 'dockview-active-panel-state')).toContainText('counter-')
+	})
+
+	test('theme switcher applies the selected dockview theme', async ({ page }) => {
+		await dt(page, 'dockview-theme-light').click()
+		await expect(dt(page, 'dockview-shell').locator('.dockview-theme-light')).toBeVisible()
+		await dt(page, 'dockview-theme-abyss').click()
+		await expect(dt(page, 'dockview-shell').locator('.dockview-theme-abyss')).toBeVisible()
+	})
+
+	test('floating panels update the floating count and dock back', async ({ page }) => {
+		await dt(page, 'dockview-open-floating').click()
+		await expect(dt(page, 'dockview-panel-count')).toContainText('Panels: 3')
+		await expect(dt(page, 'dockview-floating-state')).toContainText('Floating: 1')
+
+		await dt(page, 'dockview-dock-all').click()
+		await expect(dt(page, 'dockview-floating-state')).toContainText('Floating: 0')
 	})
 })

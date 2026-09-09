@@ -122,7 +122,7 @@ export default defineConfig({
 				keepNames: true,
 			},
 			external: [
-				'mutts', 'jsdom',
+				'mutts', 'jsdom', 'sass',
 				'@babel/core', '@babel/types',
 				'@babel/plugin-proposal-decorators',
 				'@babel/plugin-transform-react-jsx',

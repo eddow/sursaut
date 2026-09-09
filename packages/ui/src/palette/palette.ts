@@ -367,12 +367,28 @@ export class Palette<TSchema extends PaletteSchema = PaletteSchema>
 			region: scope.region,
 		}
 		const spec = this.resolveEditor(item, tool, surface)
-		// Compute editor choices and inject into scope for adapters
+		// Compute the descriptor from the real toolbar position when known.
+		// `scope.toolbar`/`scope.toolbarIndex` are threaded by `Toolbar`;
+		// fall back to a singleton target so standalone callers still work.
+		const scopeRecord = scope as Record<string, unknown>
+		const scopeToolbar = Array.isArray(scopeRecord.toolbar)
+			? (scopeRecord.toolbar as PaletteToolbar)
+			: undefined
+		const scopeIndex =
+			typeof scopeRecord.toolbarIndex === 'number'
+				? (scopeRecord.toolbarIndex as number)
+				: undefined
+		const toolbar = scopeToolbar ?? [item]
+		const index = scopeToolbar && scopeIndex !== undefined ? scopeIndex : toolbar.indexOf(item)
 		const desc = this.describeItemConfiguration(
-			{ item, toolbar: [item], index: 0, region: scope.region },
+			{ item, toolbar, index: index >= 0 ? index : 0, region: scope.region },
 			surface
 		)
-		const augmentedScope = { ...scope, editorChoices: desc.presentation.editorChoices }
+		const augmentedScope = {
+			...scope,
+			descriptor: desc,
+			editorChoices: desc.presentation.editorChoices,
+		}
 		if (spec?.configure)
 			return spec.configure({ item, tool, scope: augmentedScope, flags: spec.flags ?? {}, surface })
 		if (this.configurator) return this.configurator(item, tool, augmentedScope)
@@ -676,6 +692,23 @@ export function renderPaletteConfigurator<
 }
 
 /**
+ * Compute a headless configuration descriptor through a palette instance.
+ *
+ * Standalone equivalent of `Palette.describeItemConfiguration` for callers
+ * that hold a palette reference but prefer a function call.
+ */
+export function describePaletteItemConfiguration<TSchema extends PaletteSchema>(
+	palette: PaletteOf<TSchema>,
+	target: PaletteConfiguredItemTarget,
+	surface: PaletteSurfaceContext
+): PaletteItemConfigurationDescriptor {
+	// `PaletteOf<TSchema>` is already the `Palette<TSchema>` interface, which owns
+	// `describeItemConfiguration` — no cast needed (and casting to the `Palette`
+	// class would wrongly require its private `#disposeStyle`/`Toolbar`/`Ide`).
+	return palette.describeItemConfiguration(target, surface)
+}
+
+/**
  * Resolve a palette tool by its ID.
  */
 function resolveTool<TTools extends PaletteTools>(
@@ -771,6 +804,8 @@ export const palettes = reactive<{
 		item: PaletteToolbarItem
 		palette: PaletteBase
 		region?: PaletteRegion
+		toolbar?: PaletteToolbar
+		toolbarIndex?: number
 	}
 }>({})
 

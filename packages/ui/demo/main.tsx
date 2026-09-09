@@ -8,18 +8,30 @@ import {
 } from '@sursaut/kit'
 import AccordionDemo from './components/AccordionDemo'
 import CheckButtonDemo from './components/CheckButtonDemo'
+import DeclarativeDemo from './components/DeclarativeDemo'
 import DisplayContextDemo from './components/DisplayContextDemo'
+import BasicDemo from './components/dockview/BasicDemo'
+import CustomTabDemo from './components/dockview/CustomTabDemo'
+import EmptyDemo from './components/dockview/EmptyDemo'
+import EventsDemo from './components/dockview/EventsDemo'
+import FloatingDemo from './components/dockview/FloatingDemo'
+import LayoutDemo from './components/dockview/LayoutDemo'
+import ParamsDemo from './components/dockview/ParamsDemo'
+import ThemesDemo from './components/dockview/ThemesDemo'
 import DockviewDemo from './components/DockviewDemo'
 import DockviewRouterDemo from './components/DockviewRouterDemo'
 import DragDropDemo from './components/DragDropDemo'
 import FormDemo from './components/FormDemo'
+import GridviewDemo from './components/GridviewDemo'
 import IconPickerDemo from './components/IconPickerDemo'
 import MenuDemo from './components/MenuDemo'
 import MultiSelectDemo from './components/MultiSelectDemo'
 import OverlayDemo from './components/OverlayDemo'
 import PaletteDemo from './components/PaletteDemo'
+import PaneviewDemo from './components/PaneviewDemo'
 import ProgressDemo from './components/ProgressDemo'
 import SizeableDemo from './components/SizeableDemo'
+import SplitviewDemo from './components/SplitviewDemo'
 import StarsDemo from './components/StarsDemo'
 import 'mutts/debug'
 
@@ -45,6 +57,15 @@ const routes: DemoRoute[] = [
 	{ path: '/accordion', label: 'Accordion', view: () => <AccordionDemo /> },
 	{ path: '/checkbutton', label: null, view: () => <CheckButtonDemo /> },
 	{ path: '/dockview', label: 'Dockview', view: () => <DockviewDemo /> },
+	{ path: '/dockview/basic', label: null, view: () => <BasicDemo /> },
+	{ path: '/dockview/params', label: null, view: () => <ParamsDemo /> },
+	{ path: '/dockview/custom-tab', label: null, view: () => <CustomTabDemo /> },
+	{ path: '/dockview/layout', label: null, view: () => <LayoutDemo /> },
+	{ path: '/dockview/themes', label: null, view: () => <ThemesDemo /> },
+	{ path: '/dockview/events', label: null, view: () => <EventsDemo /> },
+	{ path: '/dockview/floating', label: null, view: () => <FloatingDemo /> },
+	{ path: '/dockview/empty', label: null, view: () => <EmptyDemo /> },
+	{ path: '/declarative', label: 'Declarative', view: () => <DeclarativeDemo /> },
 	{
 		path: '/dockview-router/[...route]',
 		href: '/dockview-router',
@@ -52,12 +73,15 @@ const routes: DemoRoute[] = [
 		view: () => <DockviewRouterDemo />,
 	},
 	{ path: '/drag-drop', label: 'Drag & Drop', view: () => <DragDropDemo /> },
+	{ path: '/gridview', label: 'Gridview', view: () => <GridviewDemo /> },
 	{ path: '/icon-picker', label: 'IconPicker', view: () => <IconPickerDemo /> },
 	{ path: '/menu', label: 'Menu', view: () => <MenuDemo /> },
 	{ path: '/multiselect', label: 'MultiSelect', view: () => <MultiSelectDemo /> },
 	{ path: '/palette', label: 'Palette', view: () => <PaletteDemo /> },
+	{ path: '/paneview', label: 'Paneview', view: () => <PaneviewDemo /> },
 	{ path: '/progress', label: 'Progress', view: () => <ProgressDemo /> },
 	{ path: '/sizeable', label: 'Sizeable', view: () => <SizeableDemo /> },
+	{ path: '/splitview', label: 'Splitview', view: () => <SplitviewDemo /> },
 	{ path: '/stars', label: 'Stars', view: () => <StarsDemo /> },
 	{ path: '/display-context', label: 'DisplayContext', view: () => <DisplayContextDemo /> },
 	{ path: '/themetoggle', label: null, view: () => <DisplayContextDemo /> },

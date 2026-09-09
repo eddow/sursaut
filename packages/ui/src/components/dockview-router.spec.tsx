@@ -1,5 +1,5 @@
 import { h, SursautElement } from '@sursaut/core'
-import type { DockviewApi } from 'dockview-core'
+import type { DockviewApi } from 'dockview'
 import { describe, expect, it, vi } from 'vitest'
 import { type DockviewRouteWidgetParams, dockviewRouterInternals } from './dockview-router'
 

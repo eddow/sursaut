@@ -301,7 +301,7 @@ test.describe('Kit Router — SPA reactivity', () => {
 		expect(await page.evaluate(() => window.scrollY)).toBe(1000)
 	})
 
-	test('route perf measures stay within sandbox expectations', async ({ page }) => {
+	test('route perf measures stay within expectations', async ({ page }) => {
 		test.skip(process.env.VITE_PERF !== 'true', 'Perf validation only runs in perf mode')
 
 		await page.goto('/router')

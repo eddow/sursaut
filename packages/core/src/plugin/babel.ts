@@ -1,5 +1,6 @@
 import type { NodePath, PluginObj, types as t } from '@babel/core'
 import type { JSXElement } from '@babel/types'
+import { compileString } from 'sass'
 
 interface SursautBabelPluginOptions {
 	types: typeof t
@@ -134,6 +135,29 @@ function buildCompositeCall(
 		}
 	}
 	return t.callExpression(t.identifier(compositeCalleeName), layers)
+}
+
+/** Sass flavor resolved from the tag: `indented` for `.sass`, `scss` for `.scss`, `null` for plain CSS. */
+type SassFlavor = 'indented' | 'scss'
+
+/**
+ * Resolve the sass flavor of a `css`/`sass`/`scss` tagged template tag.
+ *
+ * Detects the canonical names (`sass`, `scss`) and the flavored member form
+ * (`componentStyle.sass`, `baseStyle.scss`, …). Plain `css` (or `componentStyle.css`)
+ * returns `null` — no compilation, verbatim injection.
+ */
+function resolveSassFlavor(t: typeof import('@babel/types'), tag: t.Expression): SassFlavor | null {
+	if (t.isIdentifier(tag)) {
+		if (tag.name === 'sass') return 'indented'
+		if (tag.name === 'scss') return 'scss'
+		return null
+	}
+	if (t.isMemberExpression(tag) && !tag.computed && t.isIdentifier(tag.property)) {
+		if (tag.property.name === 'sass') return 'indented'
+		if (tag.property.name === 'scss') return 'scss'
+	}
+	return null
 }
 
 export function sursautBabelPlugin({
@@ -297,6 +321,39 @@ export function sursautBabelPlugin({
 				throw path.buildCodeFrameError(
 					'[bind] `bind:` label syntax was removed from @sursaut/core; use bind(...) directly'
 				)
+			},
+			TaggedTemplateExpression(path: NodePath<t.TaggedTemplateExpression>) {
+				const flavor = resolveSassFlavor(t, path.node.tag)
+				if (!flavor) return
+				// Compile `sass` / `scss` template literals to plain CSS at build time.
+				// Supports static template literal chunks and interpolation of primitive
+				// literals; anything else is left verbatim so behavior degrades gracefully.
+				let sassSource = ''
+				for (let i = 0; i < path.node.quasi.quasis.length; i++) {
+					sassSource +=
+						path.node.quasi.quasis[i].value.cooked ?? path.node.quasi.quasis[i].value.raw
+					const expr = path.node.quasi.expressions[i]
+					if (expr === undefined) continue
+					if (t.isStringLiteral(expr)) sassSource += expr.value
+					else if (t.isNumericLiteral(expr)) sassSource += String(expr.value)
+					else if (t.isBooleanLiteral(expr)) sassSource += String(expr.value)
+					else return // dynamic interpolation — leave uncompiled
+				}
+				try {
+					const result = compileString(sassSource, {
+						syntax: flavor,
+						// Stylesheet-relative imports have no meaning in an inline tag.
+						loadPaths: [],
+					})
+					path.node.quasi = t.templateLiteral(
+						[t.templateElement({ raw: result.css, cooked: result.css })],
+						[]
+					)
+				} catch (error) {
+					throw path.buildCodeFrameError(
+						`[sursaut] sass/${flavor} compilation failed: ${error instanceof Error ? error.message : String(error)}`
+					)
+				}
 			},
 			JSXFragment(path: NodePath<t.JSXFragment>, state: SursautBabelPluginState) {
 				ensureImports(path, 'h', 'Fragment')

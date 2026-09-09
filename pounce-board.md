@@ -384,7 +384,6 @@ Most of the time, you don't need `getSSRData()` directly - just use `api()` and 
 - [ ] Set up Biome for linting/formatting
 - [ ] Configure Vite for development
 - [ ] Set up test framework (Vitest)
-- [ ] Create `sandbox/` folder for development
 - [ ] Add `.gitignore`
 
 ### 1.2 Dependencies

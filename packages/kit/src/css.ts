@@ -1,10 +1,12 @@
 import { flavored } from 'mutts'
 
 /**
- * CSS template tag functions for inline CSS processing
+ * CSS template tag functions for inline style injection.
  *
- * These functions are transformed by the Vite plugin to process CSS
- * through Vite's PostCSS pipeline (autoprefixer, etc.)
+ * `css` injects plain CSS verbatim. `sass` (indented syntax) and `scss`
+ * (brace syntax) are compiled to CSS at build time by the `@sursaut/core`
+ * Vite/babel plugin (via `dart-sass` `compileString`) before injection, so
+ * nested rules and `&`-parent selectors resolve to plain CSS.
  *
  * For syntax highlighting in VS Code/Cursor, install the "es6-string-html" extension:
  * https://open-vsx.org/extension/Tobermory/es6-string-html

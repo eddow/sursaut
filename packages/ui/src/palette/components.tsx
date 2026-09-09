@@ -1336,6 +1336,8 @@ Object.assign(rootEnv, {
 				item: target.item,
 				palette: target.palette,
 				region: target.region,
+				toolbar: target.toolbar,
+				toolbarIndex: target.itemIndex,
 			}
 			const origin = {
 				border: target.border,
@@ -1434,6 +1436,7 @@ export function Toolbar<TSchema extends PaletteSchema = PaletteSchema>(
 				{(item, position) => {
 					const index = position.index
 					const tool = hasPaletteItemTool(item) ? palette.tool(item.tool) : undefined
+					const itemScope = { ...scope, toolbar: props.toolbar, toolbarIndex: index }
 					return (
 						<>
 							<div class="toolbar-item">
@@ -1447,7 +1450,7 @@ export function Toolbar<TSchema extends PaletteSchema = PaletteSchema>(
 										palette.editing
 									}
 								>
-									{palette.renderEditor(item, tool, scope)}
+									{palette.renderEditor(item, tool, itemScope)}
 								</div>
 								<div
 									if={
@@ -1482,6 +1485,8 @@ export function Toolbar<TSchema extends PaletteSchema = PaletteSchema>(
 											item,
 											palette,
 											region: props.region,
+											toolbar: props.toolbar,
+											toolbarIndex: index,
 										}
 									}}
 								/>

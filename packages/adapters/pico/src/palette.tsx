@@ -283,12 +283,10 @@ function BaseConfigurator(props: {
 	tool: PaletteTool | undefined
 	scope: Record<string, unknown>
 }) {
-	const editorChoices =
-		(props.scope?.editorChoices as ReadonlyArray<{
-			id: string
-			label: string
-			selected: boolean
-		}>) ?? []
+	const descriptor = props.scope?.descriptor as
+		| { presentation: { editorChoices: readonly { id: string; label: string }[] } }
+		| undefined
+	const editorChoices = descriptor?.presentation.editorChoices ?? []
 	const meta = itemMeta(props.item)
 	return (
 		<div class="sursaut-palette-config-table">

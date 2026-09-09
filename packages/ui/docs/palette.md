@@ -26,6 +26,7 @@ import {
 	paletteCommandEntries,
 	paletteDefaultDrawerEditor,
 	paletteDerivedVariants,
+	describePaletteItemConfiguration,
 	paletteEnumSubsetValues,
 	palettes,
 	paletteToolbarItemFromCatalogPayload,
@@ -187,8 +188,6 @@ At runtime you can also call:
 
 The same helpers are re-exported as:
 
-The same helpers are re-exported as:
-
 - `resolvePaletteEditor(...)`
 - `renderPaletteEditor(...)`
 - `renderPaletteConfigurator(...)`
@@ -236,15 +235,21 @@ The descriptor contains:
 
 - **`title`** / **`subtitle`** — derived from the item's tool spec and config label
 - **`structure`** — structural actions (`moveBackward`, `moveForward`, `removable`) based on the item's position in its toolbar
-- **`presentation`** — editor variant choices (`editorChoices`), filtered by the item's tool family and the current surface axis; also `showText` and `compact` toggles
+- **`presentation`** — editor variant choices (`editorChoices`), filtered by the item's tool family and the current surface axis
 - **`bindings`** — optional keyboard shortcut information
+
+`renderConfigurator` threads the real toolbar position through: `Toolbar` stores
+`toolbar`/`toolbarIndex` on the item scope, `palettes.inspecting` carries them for
+inspected items, and the descriptor is also exposed as `scope.descriptor`
+(`editorChoices` stays as a convenience alias). A standalone
+`describePaletteItemConfiguration(palette, target, surface)` is also exported.
 
 Editor choices are computed from `PaletteConfig.editorCapabilities` (if supplied) or the built-in `paletteDefaultEditorCapabilities` registry:
 
 ```ts
 import { paletteDefaultEditorCapabilities } from '@sursaut/ui/palette'
-// 12 built-in capability descriptors: button, splitButton, toggle, flip,
-// radio, select, segmented, splitRadio, slider, stepper, stars, commandBox
+// 13 built-in capability descriptors: button, splitButton, toggle, flip,
+// radio, select, segmented, splitRadio, slider, stepper, stars, commandBox, drawer
 ```
 
 Each capability declares which tool `families` it supports and which `supportedAxes` are valid. Capabilities whose families don't match or whose axis is incompatible are excluded from `editorChoices`.

@@ -971,6 +971,55 @@
 	pointer-events: none;
 }
 
+/* ── Center Content (demo shell overlay) ── */
+
+.palette-default-center-content {
+	display: grid;
+	grid-auto-rows: max-content;
+	gap: 10px;
+	padding: 6px;
+	align-content: start;
+	min-height: 100%;
+	box-sizing: border-box;
+}
+
+.palette-default-center-content.is-dimmed {
+	opacity: 0.35;
+	transition: opacity 140ms ease;
+}
+
+/* ── Drawer (default inline variant; popup variant lives in palette.css) ── */
+
+.palette-default-drawer-container {
+	display: inline-flex;
+	align-items: center;
+	position: relative;
+}
+
+.palette-default-drawer-chevron {
+	display: inline-grid;
+	place-items: center;
+	font-size: 0.72rem;
+	color: #93c5fd;
+}
+
+.palette-default-drawer-popover {
+	display: grid;
+	gap: 4px;
+	padding: 6px;
+	border-radius: 12px;
+	border: 1px solid rgba(71, 85, 105, 0.9);
+	background: rgba(2, 6, 23, 0.98);
+	box-shadow: 0 16px 32px rgba(2, 6, 23, 0.35);
+}
+
+.palette-default-drawer-item {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-inline-size: 0;
+}
+
 /* ── Light Theme ── */
 
 .palette-default-theme-light .palette-default-tool,

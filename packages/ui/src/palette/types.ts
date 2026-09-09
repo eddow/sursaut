@@ -771,10 +771,6 @@ export type PaletteConfiguredItemTarget = {
 export type PaletteItemStructureSection = {
 	readonly moveBackward?: { readonly enabled: boolean }
 	readonly moveForward?: { readonly enabled: boolean }
-	readonly moveTargets?: readonly {
-		readonly toolbar: PaletteToolbar
-		readonly label: string
-	}[]
 	readonly removable?: boolean
 }
 
@@ -788,14 +784,6 @@ export type PaletteItemPresentationSection = {
 		readonly label: string
 		readonly selected: boolean
 	}[]
-	readonly showText?: {
-		readonly value: boolean
-		readonly enabled: boolean
-	}
-	readonly compact?: {
-		readonly value: boolean
-		readonly enabled: boolean
-	}
 }
 
 /**

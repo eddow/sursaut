@@ -6,7 +6,7 @@
 
 ## Low priority
 
-- Reduce `route:render` p95 during perf-mode router navigation (`sandbox/perf-expectations.md` validation harness is in place; fast-path marks already meet budget).
+- Reduce `route:render` p95 during perf-mode router navigation (perf-mode validation harness in place via `pnpm run perf:check`; fast-path marks already meet budget).
 - `storedSession()` with SSR in-memory fallback.
 
 ## Already implemented

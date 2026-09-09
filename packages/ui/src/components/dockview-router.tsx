@@ -15,7 +15,7 @@ import {
 	type RouteSpecification,
 	routerModel,
 } from '@sursaut/kit'
-import type { DockviewApi, DockviewOptions, SerializedDockview } from 'dockview-core'
+import type { DockviewApi, DockviewOptions, SerializedDockview } from 'dockview'
 import { caught, effect, reactive } from 'mutts'
 import {
 	Dockview,

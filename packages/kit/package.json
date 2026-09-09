@@ -54,7 +54,7 @@
 		"test": "vitest run",
 		"run:e2e": "pnpm exec vite --config tests/e2e/vite.config.ts --host=127.0.0.1 --port=5277 --strictPort",
 		"test:e2e": "playwright test",
-		"perf:check": "VITE_PERF=true pnpm exec playwright test tests/e2e/router.test.ts -g \"route perf measures stay within sandbox expectations\"",
+		"perf:check": "VITE_PERF=true pnpm exec playwright test tests/e2e/router.test.ts -g \"route perf measures stay within expectations\"",
 		"perf": "VITE_PERF=true VITE_PERF_LOG=true pnpm run test:e2e"
 	},
 	"dependencies": {

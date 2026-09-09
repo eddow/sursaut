@@ -1,6 +1,23 @@
-import { Dockview, type DockviewHeaderAction, type DockviewWidget } from '@sursaut/ui/dockview'
-import { type DockviewApi, Orientation, type SerializedDockview } from 'dockview-core'
-import { effect, reactive, untracked } from 'mutts'
+import {
+	Dockview,
+	type DockviewActiveState,
+	type DockviewFloatingState,
+	type DockviewHandle,
+	type DockviewHeaderAction,
+	type DockviewPopoutState,
+	type DockviewWatermarkProps,
+	type DockviewWidget,
+} from '@sursaut/ui/dockview'
+import {
+	type DockviewApi,
+	Orientation,
+	type SerializedDockview,
+	themeAbyss,
+	themeDark,
+	themeDracula,
+	themeLight,
+} from 'dockview'
+import { reactive, untracked, effect } from 'mutts'
 
 type DemoContext = {
 	accent?: string
@@ -158,6 +175,20 @@ const NotesWidget: DockviewWidget<NotesParams, DemoContext> = (props) => {
 const LiveTab: DockviewWidget<{ panelId: string }, DemoContext> = (props, scope) => {
 	const accent = () => props.context.accent ?? '#475569'
 	const label = () => props.context.label ?? props.title
+	const floatPanel = () => {
+		const api = scope.dockviewApi
+		const id = scope.panelApi?.id
+		if (!api || !id) return
+		const panel = api.getPanel(id)
+		if (panel) api.addFloatingGroup(panel)
+	}
+	const popoutPanel = () => {
+		const api = scope.dockviewApi
+		const id = scope.panelApi?.id
+		if (!api || !id) return
+		const panel = api.getPanel(id)
+		if (panel) void api.addPopoutGroup(panel)
+	}
 	return (
 		<div
 			data-test={`dockview-tab-${props.params.panelId}`}
@@ -178,6 +209,24 @@ const LiveTab: DockviewWidget<{ panelId: string }, DemoContext> = (props, scope)
 				{props.context.badge ?? '0'}
 			</span>
 			<button
+				data-test={`dockview-tab-float-${props.params.panelId}`}
+				style="background: none; border: none; cursor: pointer; color: inherit; opacity: 0.7; font-size: 12px; padding: 0 2px;"
+				title="Float panel"
+				aria-label={`Float ${props.title}`}
+				onClick={floatPanel}
+			>
+				⧉
+			</button>
+			<button
+				data-test={`dockview-tab-popout-${props.params.panelId}`}
+				style="background: none; border: none; cursor: pointer; color: inherit; opacity: 0.7; font-size: 12px; padding: 0 2px;"
+				title="Popout panel"
+				aria-label={`Popout ${props.title}`}
+				onClick={popoutPanel}
+			>
+				↗
+			</button>
+			<button
 				data-test={`dockview-tab-close-${props.params.panelId}`}
 				class="close"
 				aria-label={`Close ${props.title}`}
@@ -189,128 +238,156 @@ const LiveTab: DockviewWidget<{ panelId: string }, DemoContext> = (props, scope)
 	)
 }
 
-const GroupHeaderAction: DockviewHeaderAction = ({ group }) => {
+const GroupHeaderAction: DockviewHeaderAction = ({ group }, scope) => {
 	return (
-		<button
-			data-test={`dockview-group-close-${group.id}`}
-			style="background: transparent; color: inherit; border: 1px solid currentColor; border-radius: 999px; padding: 2px 8px; font-size: 11px; cursor: pointer; opacity: 0.8;"
-			onClick={() => group.api.close()}
-		>
-			Close group ({group.panels.length})
-		</button>
+		<div style="display: flex; align-items: center; gap: 4px;">
+			<button
+				data-test={`dockview-group-float-${group.id}`}
+				style="background: transparent; color: inherit; border: 1px solid currentColor; border-radius: 999px; padding: 2px 8px; font-size: 11px; cursor: pointer; opacity: 0.8;"
+				title="Float group"
+				aria-label="Float group"
+				onClick={() => scope.dockviewApi?.addFloatingGroup(group)}
+			>
+				⧉
+			</button>
+			<button
+				data-test={`dockview-group-popout-${group.id}`}
+				style="background: transparent; color: inherit; border: 1px solid currentColor; border-radius: 999px; padding: 2px 8px; font-size: 11px; cursor: pointer; opacity: 0.8;"
+				title="Popout group"
+				aria-label="Popout group"
+				onClick={() => scope.dockviewApi?.addPopoutGroup(group)}
+			>
+				↗
+			</button>
+			<button
+				data-test={`dockview-group-close-${group.id}`}
+				style="background: transparent; color: inherit; border: 1px solid currentColor; border-radius: 999px; padding: 2px 8px; font-size: 11px; cursor: pointer; opacity: 0.8;"
+				onClick={() => group.api.close()}
+			>
+				Close group ({group.panels.length})
+			</button>
+		</div>
 	)
 }
 
+const EmptyWatermark = (props: DockviewWatermarkProps) => {
+	return (
+		<div
+			data-test="dockview-watermark"
+			style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; height: 100%; color: #94a3b8;"
+		>
+			<p style="margin: 0;">Empty dock — open a panel to begin</p>
+			<button
+				data-test="dockview-watermark-open"
+				style="background: #2563eb; color: white; border: none; border-radius: 8px; padding: 8px 12px; cursor: pointer;"
+				onClick={() =>
+					props.openPanel('counter', {
+						params: { panelId: 'counter-watermark', initial: 1, step: 1 },
+					})
+				}
+			>
+				Open panel
+			</button>
+		</div>
+	)
+}
+
+const themes = { abyss: themeAbyss, dark: themeDark, light: themeLight, dracula: themeDracula }
+type ThemeName = keyof typeof themes
+
 export default function DockviewDemo() {
-	const initialLayout = createDefaultLayout()
+	const storedLayout = (() => {
+		try {
+			const raw = localStorage.getItem('sursaut:dockview-demo')
+			return raw ? (JSON.parse(raw) as SerializedDockview) : undefined
+		} catch {
+			return undefined
+		}
+	})()
+	const initialLayout = storedLayout ?? createDefaultLayout()
 	const state = reactive<{
 		api: DockviewApi | undefined
+		handle: DockviewHandle | undefined
+		active: DockviewActiveState | undefined
+		floating: DockviewFloatingState | undefined
+		popout: DockviewPopoutState | undefined
 		layout: SerializedDockview | undefined
 		mounted: boolean
+		savedLayout: string
 		panelCount: number
 		activePanelId: string | undefined
-		savedLayout: string
+		themeName: ThemeName
+		eventLog: string[]
+		eventSeq: number
 	}>({
 		api: undefined,
+		handle: undefined,
+		active: undefined,
+		floating: undefined,
+		popout: undefined,
 		layout: cloneLayout(initialLayout),
 		mounted: true,
+		savedLayout: '',
 		panelCount: 0,
 		activePanelId: undefined,
-		savedLayout: '',
+		themeName: 'dracula',
+		eventLog: [],
+		eventSeq: 0,
 	})
-	let nextCounter = 2
-	let nextNotes = 2
 
-	effect`DockviewDemo.syncApiState`(() => {
-		const api = state.api
-		if (!api) {
-			state.panelCount = 0
-			state.activePanelId = undefined
-			return
-		}
-		const syncRuntime = () => {
-			state.panelCount = api.totalPanels
-			state.activePanelId = api.activePanel?.id ?? api.panels[0]?.id
-		}
-		const ensureActive = () => {
-			if (!api.activePanel && api.panels[0]) api.panels[0].api.setActive()
-			syncRuntime()
-		}
-		syncRuntime()
-		const onAdd = api.onDidAddPanel(syncRuntime)
-		const onRemove = api.onDidRemovePanel(syncRuntime)
-		const onActive = api.onDidActivePanelChange(syncRuntime)
-		const onLayout = api.onDidLayoutChange(syncRuntime)
-		const onLayoutFromJson = api.onDidLayoutFromJSON(ensureActive)
-		ensureActive()
-		return () => {
-			onAdd.dispose()
-			onRemove.dispose()
-			onActive.dispose()
-			onLayout.dispose()
-			onLayoutFromJson.dispose()
-		}
-	})
+	const pushEvent = (msg: string) => {
+		state.eventSeq += 1
+		state.eventLog = [...state.eventLog.slice(-9), `#${state.eventSeq} ${msg}`]
+	}
 
 	const widgets = {
-		counter: CounterWidget,
-		notes: NotesWidget,
+		counter: { component: CounterWidget, tab: LiveTab, title: 'Counter' },
+		notes: { component: NotesWidget, tab: LiveTab, title: 'Notes' },
 	}
 	const tabs = {
 		'live-counter-tab': LiveTab,
 		'live-notes-tab': LiveTab,
 	}
+	let nextCounter = 2
+	let nextNotes = 2
 
 	const addCounter = () => {
-		const api = state.api
-		if (!api) return
-		const id = `counter-${nextCounter++}`
-		const order = Number(id.split('-')[1])
-		const referencePanel = api.activePanel ?? api.panels[0]
-		api.addPanel({
-			id,
-			title: `Counter ${id.split('-')[1]}`,
-			component: 'counter',
-			tabComponent: 'live-counter-tab',
-			params: { panelId: id, initial: order, step: 1 },
-			floating: false,
-			...(referencePanel
-				? { position: { referencePanel, direction: 'within' as const } }
-				: { position: { direction: 'right' as const } }),
+		const handle = state.handle
+		if (!handle) return
+		const order = nextCounter++
+		handle.openPanel('counter', {
+			id: `counter-${order}`,
+			title: `Counter ${order}`,
+			params: { panelId: `counter-${order}`, initial: order, step: 1 },
 		})
 	}
 
 	const addNotes = () => {
-		const api = state.api
-		if (!api) return
-		const id = `notes-${nextNotes++}`
-		const referencePanel = api.activePanel ?? api.panels[0]
-		api.addPanel({
-			id,
-			title: `Notes ${id.split('-')[1]}`,
-			component: 'notes',
-			tabComponent: 'live-notes-tab',
-			params: { panelId: id, initial: `Notes for ${id}` },
-			floating: false,
-			...(referencePanel
-				? { position: { referencePanel, direction: 'within' as const } }
-				: { position: { direction: 'right' as const } }),
+		const handle = state.handle
+		if (!handle) return
+		const order = nextNotes++
+		handle.openPanel('notes', {
+			id: `notes-${order}`,
+			title: `Notes ${order}`,
+			params: { panelId: `notes-${order}`, initial: `Notes for notes-${order}` },
 		})
 	}
 
 	const splitActiveRight = () => {
+		const handle = state.handle
 		const api = state.api
-		const referencePanel = api?.activePanel ?? api?.panels[0]
-		if (!api || !referencePanel) return
-		const id = `counter-${nextCounter++}`
-		const order = Number(id.split('-')[1])
-		api.addPanel({
-			id,
-			title: `Counter ${id.split('-')[1]}`,
-			component: 'counter',
-			tabComponent: 'live-counter-tab',
-			params: { panelId: id, initial: order, step: 1 },
-			floating: false,
+		// Same staleness guard as `closeActive` — prefer live api state.
+		const liveId = api?.activePanel?.id ?? api?.panels[0]?.id
+		const storedId = state.active?.panel?.id
+		const staleId =
+			liveId ?? (storedId && api?.panels.some((p) => p.id === storedId) ? storedId : undefined)
+		const referencePanel = staleId ? api?.panels.find((p) => p.id === staleId) : undefined
+		if (!handle || !referencePanel) return
+		const order = nextCounter++
+		handle.openPanel('counter', {
+			id: `counter-${order}`,
+			title: `Counter ${order}`,
+			params: { panelId: `counter-${order}`, initial: order, step: 1 },
 			position: { referencePanel, direction: 'right' as const },
 		})
 	}
@@ -321,6 +398,7 @@ export default function DockviewDemo() {
 			null,
 			2
 		)
+		persistLayout()
 	}
 
 	const restoreLayout = () => {
@@ -347,9 +425,73 @@ export default function DockviewDemo() {
 	}
 
 	const closeActive = () => {
+		// Never close through a stored wrapper: `fromJSON` rebuilds group
+		// objects, so `state.active.panel` may point at a disposed panel whose
+		// `close()` throws "invalid operation". Prefer the live api state;
+		// fall back to the stored id only if it still resolves to a live panel.
 		const api = state.api
-		const panel = api?.activePanel ?? api?.panels[0]
+		const liveId = api?.activePanel?.id ?? api?.panels[0]?.id
+		const storedId = state.active?.panel?.id
+		const staleId =
+			liveId ?? (storedId && api?.panels.some((p) => p.id === storedId) ? storedId : undefined)
+		const panel = staleId ? api?.panels.find((p) => p.id === staleId) : undefined
 		panel?.api.close()
+	}
+
+	const floatActive = () => {
+		const handle = state.handle
+		const api = state.api
+		// Same staleness guard as `closeActive` — prefer live api state.
+		const liveId = api?.activePanel?.id ?? api?.panels[0]?.id
+		const storedId = state.active?.panel?.id
+		const staleId =
+			liveId ?? (storedId && api?.panels.some((p) => p.id === storedId) ? storedId : undefined)
+		const panel = staleId ? api?.panels.find((p) => p.id === staleId) : undefined
+		if (!handle || !panel) return
+		handle.float(panel.id)
+	}
+
+	const openFloatingCounter = () => {
+		const handle = state.handle
+		if (!handle) return
+		const order = nextCounter++
+		handle.openPanel('counter', {
+			id: `counter-${order}`,
+			title: `Floating ${order}`,
+			params: { panelId: `counter-${order}`, initial: order, step: 1 },
+			floating: { x: 80, y: 80, width: 320, height: 220 },
+		})
+	}
+
+	const persistLayout = () => {
+		try {
+			if (state.layout) localStorage.setItem('sursaut:dockview-demo', JSON.stringify(state.layout))
+		} catch {
+			// Storage full or unavailable — the demo still works in-memory.
+		}
+	}
+
+	const onReady = (api: DockviewApi, handle?: DockviewHandle) => {
+		state.api = api
+		if (handle) state.handle = handle
+		const sync = () => {
+			state.panelCount = api.totalPanels
+			state.activePanelId = api.activePanel?.id ?? api.panels[0]?.id
+		}
+		sync()
+		const disposables = [
+			api.onDidAddPanel(sync),
+			api.onDidRemovePanel(sync),
+			api.onDidActivePanelChange(sync),
+			api.onDidLayoutChange(sync),
+			api.onDidLayoutFromJSON(() => {
+				if (!api.activePanel && api.panels[0]) api.panels[0].api.setActive()
+				sync()
+			}),
+		]
+		return () => {
+			for (const d of disposables) d.dispose()
+		}
 	}
 
 	return (
@@ -372,6 +514,23 @@ export default function DockviewDemo() {
 				<button data-test="dockview-split-active-right" onClick={splitActiveRight}>
 					Split Active Right
 				</button>
+				<button data-test="dockview-open-floating" onClick={openFloatingCounter}>
+					Open Floating
+				</button>
+				<button
+					data-test="dockview-float-active"
+					onClick={floatActive}
+					disabled={!state.activePanelId}
+				>
+					Float Active
+				</button>
+				<button
+					data-test="dockview-dock-all"
+					onClick={() => state.handle?.dockAll()}
+					disabled={!state.floating?.hasFloating}
+				>
+					Dock All
+				</button>
 				<button data-test="dockview-save-layout" onClick={saveLayout}>
 					Save Layout
 				</button>
@@ -393,6 +552,21 @@ export default function DockviewDemo() {
 					Close Active
 				</button>
 			</div>
+			<div style="display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px 0; align-items: center;">
+				<span style="color: #94a3b8; font-size: 12px;">Theme:</span>
+				{(Object.keys(themes) as ThemeName[]).map((name) => (
+					<button
+						data-test={`dockview-theme-${name}`}
+						aria-pressed={state.themeName === name}
+						style={`padding: 4px 10px; border-radius: 6px; border: 1px solid ${state.themeName === name ? '#2563eb' : '#475569'}; background: ${state.themeName === name ? '#1e3a8a' : 'transparent'}; color: white; cursor: pointer; font-size: 12px;`}
+						onClick={() => {
+							state.themeName = name
+						}}
+					>
+						{name}
+					</button>
+				))}
+			</div>
 			<div style="display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; align-items: start;">
 				<div
 					data-test="dockview-shell"
@@ -402,12 +576,24 @@ export default function DockviewDemo() {
 					{state.mounted && (
 						<Dockview
 							api={state.api}
+							handle={state.handle}
+							active={state.active}
+							floating={state.floating}
+							popout={state.popout}
 							widgets={widgets}
 							tabs={tabs}
 							headerRight={GroupHeaderAction}
+							watermark={EmptyWatermark}
 							layout={state.layout}
-							options={{ singleTabMode: 'default' }}
+							options={{ singleTabMode: 'default', theme: themes[state.themeName] }}
+							themeSync={false}
 							el={{ style: 'height: 100%; width: 100%;' }}
+							onReady={onReady}
+							onDidActivePanelChange={(event) =>
+								pushEvent(`active panel → ${event.panel?.id ?? '(none)'}`)
+							}
+							onDidAddPanel={(panel) => pushEvent(`added ${panel.id}`)}
+							onDidRemovePanel={(panel) => pushEvent(`removed ${panel.id}`)}
 						/>
 					)}
 				</div>
@@ -418,7 +604,31 @@ export default function DockviewDemo() {
 						</div>
 						<div data-test="dockview-api-state">API: {state.api ? 'ready' : 'pending'}</div>
 						<div data-test="dockview-panel-count">Panels: {state.panelCount}</div>
-						<div data-test="dockview-active-panel">Active: {state.activePanelId ?? 'none'}</div>
+						<div data-test="dockview-active-panel">
+							Active: {state.activePanelId ?? 'none'}
+						</div>
+						<div data-test="dockview-floating-state">
+							Floating: {state.floating?.count ?? 0}
+						</div>
+						<div data-test="dockview-popout-state">
+							Popout: {state.popout?.count ?? 0}
+						</div>
+					</div>
+					<div style="padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #1e293b;">
+						<div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 6px;">
+							Events
+						</div>
+						<div data-test="dockview-active-panel-state">
+							Active: {state.active?.panel?.id ?? '(none)'}
+						</div>
+						<ul
+							data-test="dockview-event-log"
+							style="margin: 6px 0 0 0; padding-left: 18px; font-size: 12px; color: #cbd5e1; max-height: 160px; overflow: auto;"
+						>
+							<for each={state.eventLog}>
+								{(entry) => <li>{entry}</li>}
+							</for>
+						</ul>
 					</div>
 					<div style="padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #1e293b;">
 						<div style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; margin-bottom: 6px;">

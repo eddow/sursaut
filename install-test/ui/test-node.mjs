@@ -154,7 +154,7 @@ if (chip.isVisible !== true) {
   process.exit(1)
 }
 
-// === Dockview subpath (optional peer dep: dockview-core, browser-only) ===
+// === Dockview subpath (optional peer dep: dockview, browser-only) ===
 try {
   const dockview = await import('@sursaut/ui/dockview')
   if (typeof dockview.Dockview !== 'function') {
@@ -168,7 +168,7 @@ try {
   console.log('✓ Dockview, DockviewRouter accessible')
 } catch (err) {
   if (err.code === 'ERR_MODULE_NOT_FOUND') {
-    console.log('⚠ Dockview subpath skipped: optional peer dep dockview-core not installed (browser-only)')
+    console.log('⚠ Dockview subpath skipped: optional peer dep dockview not installed (browser-only)')
   } else {
     throw err
   }

@@ -75,7 +75,7 @@ export default defineConfig({
 			output: {
 				keepNames: true,
 			},
-			external: [/^@sursaut\//, /^dockview-core/, /^mutts/],
+			external: [/^@sursaut\//, /^dockview/, /^mutts/],
 		},
 	},
 	plugins: [

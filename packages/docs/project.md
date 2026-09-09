@@ -254,7 +254,6 @@ packages/docs/
 │   │       └── usage.tsx
 │   └── styles/
 │       └── docs.sass       # Docs layout: sidebar, content area, responsive
-└── sandbox/
 ```
 
 ## Dependencies

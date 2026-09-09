@@ -46,6 +46,7 @@ export {
 } from './drawer-editor'
 export { createPaletteKeys, normalizePaletteKeystroke, paletteKeystrokeFromEvent } from './keys'
 export {
+	describePaletteItemConfiguration,
 	hydratePaletteLayout,
 	isEditableTool,
 	isEditing,

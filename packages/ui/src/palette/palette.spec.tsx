@@ -2,6 +2,7 @@ import { reactive } from 'mutts'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createPaletteKeys } from './keys'
 import {
+	describePaletteItemConfiguration,
 	isEditableTool,
 	isEditing,
 	isRunTool,
@@ -283,6 +284,60 @@ describe('palette engine', () => {
 			fallbackPalette.renderConfigurator({ tool: 'reset' }, fallbackPalette.tools.reset, {})
 		).toBeTruthy()
 		expect(fallback).toHaveBeenCalledTimes(2)
+	})
+
+	it('describes item configuration with real toolbar positions', () => {
+		const palette = createPalette()
+		const first = { tool: 'reset' } satisfies PaletteToolbarItem
+		const second = { tool: 'notifications' } satisfies PaletteToolbarItem
+		const toolbar = [first, second]
+
+		const head = palette.describeItemConfiguration(
+			{ item: first, toolbar, index: 0 },
+			{ axis: 'horizontal' }
+		)
+		expect(head.structure.moveBackward?.enabled).toBe(false)
+		expect(head.structure.moveForward?.enabled).toBe(true)
+		expect(head.structure.removable).toBe(true)
+		expect(head.presentation.editorChoices.length).toBeGreaterThan(0)
+
+		const tail = describePaletteItemConfiguration(
+			palette,
+			{ item: second, toolbar, index: 1 },
+			{ axis: 'horizontal' }
+		)
+		expect(tail.structure.moveBackward?.enabled).toBe(true)
+		expect(tail.structure.moveForward?.enabled).toBe(false)
+
+		const seen: string[] = []
+		const scoped = new Palette({
+			...createPalette().config,
+			editors: {
+				run: {
+					button: {
+						editor: () => <div>run</div>,
+						configure: ({ scope }) => {
+							seen.push(
+								(
+									(scope as Record<string, unknown>).descriptor as {
+										structure: { moveForward?: { enabled: boolean } }
+									}
+								).structure.moveForward?.enabled
+									? 'forward'
+									: 'stuck'
+							)
+							return <div>config</div>
+						},
+					},
+				},
+			},
+			editorDefaults: { run: 'button' },
+		} satisfies PaletteConfig)
+		scoped.renderConfigurator(first, scoped.tools.reset, {
+			toolbar,
+			toolbarIndex: 0,
+		} as unknown as Parameters<Palette['renderConfigurator']>[2])
+		expect(seen).toEqual(['forward'])
 	})
 
 	it('tracks the editing palette identity', () => {
