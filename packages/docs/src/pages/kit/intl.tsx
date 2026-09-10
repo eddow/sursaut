@@ -63,9 +63,9 @@ const displayNamesExample = `import { DisplayNames } from '@sursaut/kit'
 
 const localeConfig = `import { resolveLocale } from '@sursaut/kit'
 
-// By default, uses navigator.language.
-// Override with a custom resolver:
-resolveLocale() // → "fr-FR"`
+// Effective locale: explicit prop > DisplayProvider > client.language.
+// resolveLocale(env, explicit?) implements exactly that chain.
+resolveLocale(env) // → e.g. "fr-FR"`
 
 export default function IntlPage() {
 	return (
@@ -102,8 +102,10 @@ export default function IntlPage() {
 
 			<Section title="Locale Configuration">
 				<p>
-					By default, all components use <code>navigator.language</code>. Override with{' '}
-					<code>setLocaleResolver()</code>.
+					By default, all components resolve <code>explicit ?? useDisplayContext(env).locale</code>{' '}
+					— i.e. explicit prop wins, then <code>DisplayProvider</code>, then{' '}
+					<code>client.language</code>. No <code>setLocaleResolver()</code> exists; set locale via{' '}
+					<code>{'<DisplayProvider locale=...>'}</code>.
 				</p>
 				<Code code={localeConfig} lang="tsx" />
 			</Section>

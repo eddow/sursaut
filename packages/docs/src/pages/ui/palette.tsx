@@ -109,6 +109,29 @@ const derived = paletteDerivedVariants({
 // - set variants (tool|value)
 // - numeric actions like tool:inc / tool:dec`
 
+const descriptorCode = `import { describePaletteItemConfiguration } from '@sursaut/ui/palette'
+
+// Headless descriptor: palette owns semantics, adapter owns rendering.
+const desc = palette.describeItemConfiguration(
+  { item, toolbar, index, region: scope.region },
+  { axis: 'horizontal', region: scope.region },
+)
+// desc = { target, surface, title, subtitle,
+//   structure: { moveBackward, moveForward, removable },
+//   presentation: { currentEditor, editorChoices },
+//   bindings?: { shortcut } }
+
+// Standalone equivalent (no method call):
+describePaletteItemConfiguration(palette, { item, toolbar, index }, surface)
+
+// Editor choices come from capabilities (13 built-ins):
+// button, splitButton | toggle | flip, radio, select, segmented, splitRadio
+// | slider, stepper, stars | commandBox, drawer
+// Filtered by family + supportedAxes + accepts(); mismatch falls back to
+// the first compact capability for the family.
+// renderConfigurator() threads scope.toolbar/scope.toolbarIndex (set by
+// Toolbar) and exposes scope.descriptor (+ editorChoices alias).`
+
 export default function PalettePage() {
 	return (
 		<article>
@@ -208,6 +231,15 @@ export default function PalettePage() {
 						<code>paletteDerivedVariants()</code> expands one source into insertable variants
 					</li>
 				</ul>
+			</Section>
+
+			<Section title="Item configuration descriptor">
+				<p>
+					<code>describeItemConfiguration()</code> (method) and{' '}
+					<code>describePaletteItemConfiguration()</code> (standalone) compute what a configurator
+					UI needs: structural actions, presentation choices, and key bindings.
+				</p>
+				<Code code={descriptorCode} lang="tsx" />
 			</Section>
 		</article>
 	)

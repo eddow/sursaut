@@ -37,14 +37,13 @@ intercept('/api/**', async (req, next) => {
   return res
 })`
 
-const ssrSnippet = `// Server-side (Node.js) — uses smart executor
+const ssrSnippet = `// SSR hydration hook: the executor short-circuits cached data.
+// Configure per-client timeout/retries; GETs retry on network failure.
 import { api } from '@sursaut/kit'
-import { withSSR } from '@sursaut/kit'
 
-// SSR: API calls are tracked for hydration
-const { result, context } = await withSSR(async () => {
-  return renderApp()
-})`
+const user = await api('/users/[id]', {
+  timeout: 5000, retryDelay: 100,
+}).get({ id: '123' })`
 
 export default function KitApiPage() {
 	return (
@@ -106,9 +105,10 @@ await users.byId({ id: '123' }).delete()
 
 			<Section title="SSR Hydration">
 				<p>
-					When SSR is enabled, the client automatically tracks all <code>GET</code> requests. The
-					data is collected and can be injected into the client-side page, allowing the client-side
-					API client to "hydrate" the data instantly without a second network request.
+					The request pipeline has a cache short-circuit hook (used for SSR hydration): cached data
+					returns without hitting the executor. Timeouts abort via <code>AbortController</code> (
+					<code>timeout</code>, default 10000ms); failed GETs retry with <code>retryDelay</code>{' '}
+					(default 100ms).
 				</p>
 				<Code code={ssrSnippet} lang="tsx" />
 			</Section>

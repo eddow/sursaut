@@ -37,11 +37,11 @@ client.navigate('/about')`
 
 const storedExample = `import { stored } from '@sursaut'
 
-// stored() creates a reactive value backed by localStorage.
+// stored() creates a reactive object backed by localStorage.
 // Changes persist across page reloads.
 
-const theme = stored('theme', 'light')
-theme.value = 'dark' // saved to localStorage['theme']`
+const theme = stored({ value: 'light' })
+theme.value = 'dark' // saved to localStorage`
 
 const intlExample = `import { Number, Date, RelativeTime } from '@sursaut/kit'
 
@@ -107,7 +107,13 @@ export default function KitPage() {
 					<li>
 						Storage — <code>stored()</code> reactive localStorage
 					</li>
-					<li>API — fetch utilities, validation with arktype</li>
+					<li>API — fetch utilities, interceptors, timeout/retry, hydration hook</li>
+					<li>
+						Display — <code>DisplayProvider</code>, <code>useDisplayContext</code>
+					</li>
+					<li>
+						Head — <code>Head</code>, <code>useHead</code>
+					</li>
 				</ul>
 			</Section>
 		</article>

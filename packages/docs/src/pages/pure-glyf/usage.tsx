@@ -6,16 +6,21 @@ import { tablerSun, tablerMoon } from 'pure-glyf/icons'
 
 // Use the class name directly on an element
 <i class={tablerSun} />
-<i class={tablerMoon} />`
+<i class={tablerMoon} />
+
+// With Sursaut icon props (Button icon=... etc.), register the factory once:
+import { registerGlyfIconFactory } from 'pure-glyf/sursaut'
+registerGlyfIconFactory()`
 
 const setupSnippet = `// vite.config.ts
-import { pureGlyf } from 'pure-glyf/plugin'
+import { pureGlyfPlugin } from 'pure-glyf/plugin'
 
 export default defineConfig({
   plugins: [
-    pureGlyf({
-      // Directory containing your SVG icon sets
-      icons: './src/icons',
+    pureGlyfPlugin({
+      // Prefix -> directory of SVG sources
+      icons: { Tabler: './icons/tabler' },
+      // optional: dts defaults to '.generated-types/pure-glyf.d.ts'
     }),
   ],
 })`

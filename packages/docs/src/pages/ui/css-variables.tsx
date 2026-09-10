@@ -51,8 +51,29 @@ export default function CssVariablesPage() {
 		<article>
 			<PackageHeader
 				name="CSS Variables"
-				description="The design system contract. Customize Sursaut UI by overriding these variables in your global stylesheet."
+				description="Known --sursaut-* variables. The contract is thin: sizeable handle + demo swatches."
 			/>
+
+			<Section title="Real variables (in source)">
+				<p>
+					Only these are read by <code>@sursaut/ui</code> styles today (
+					<code>styles/sizeable.sass</code>):
+				</p>
+				<ul>
+					<li>
+						<code>--sursaut-primary</code> (fallback <code>#3b82f6</code>) — sizeable handle
+					</li>
+					<li>
+						<code>--sursaut-resize-handle-width</code> / <code>--sursaut-resize-handle-height</code>{' '}
+						(fallback <code>5px</code>)
+					</li>
+				</ul>
+				<p>
+					Everything below is the <em>intended</em> design-system contract (adapters map their own
+					variables, e.g. <code>--pico-*</code>); swatches render live values where defined and fall
+					back otherwise.
+				</p>
+			</Section>
 
 			<Section title="Brand Colors">
 				<div class="swatches">

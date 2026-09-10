@@ -49,24 +49,18 @@ The JSX pragma function that creates JSX elements. Automatically transforms JSX 
 
 ## Utility Functions
 
-### `compose(...sources)`
+### `defaults(props, defs)`
 
-Creates a new reactive object by layering multiple plain objects or factory functions. Each source can read from everything that came before it, which makes it useful for composing state with defaults, derived helpers, and caller-provided props in one place.
-
-**Parameters:**
-- `sources` - One or more objects or functions. Functions receive the accumulated result so far and must return an object.
-
-**Order matters:** values from later arguments override properties from earlier ones (similar to `Object.assign`). Put default values first and pass incoming props afterwards so that props can override defaults. Reversing the order would overwrite user-provided props with your defaults.
+Creates a proxy over `props` that applies `??` defaults lazily. Safe to call in the component body — no reactive reads happen until a property is accessed.
 
 **Example:**
 ```tsx
-const state = compose(
-  { list: [] as string[], addedText: Date.now().toString() }, // defaults
-  props
-)
+const state = defaults(props, { list: [] as string[], addedText: 'new' })
 ```
 
-In the example above, `list` and `addedText` act as defaults whenever the caller omits them, while any values supplied in `props` take precedence instead of being replaced by the defaults.
+### `extend(base, added?)`
+
+Creates a reactive object with `base` as prototype (`Object.create(base, descriptors(added))`). Used for env/scope chains.
 
 
 ## Array Utilities

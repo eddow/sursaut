@@ -79,9 +79,9 @@ const MyComp = (props) => {
   return <div>{props.name}: {props.count}</div>
 }
 
-// ALSO GOOD — compose for defaults
+// ALSO GOOD — defaults for defaults
 const MyComp = (props) => {
-  const state = compose({ count: 0 }, props)
+  const state = defaults(props, { count: 0 })
   return <div>{state.name}: {state.count}</div>
 }
 ```
@@ -178,7 +178,7 @@ Applied as attributes on any element or component:
 ### 3.4 Component Pattern
 
 ```tsx
-import { compose } from '@sursaut/core'
+import { defaults } from '@sursaut/core'
 import { effect } from 'mutts'
 import { componentStyle } from '@sursaut/kit'
 
@@ -195,8 +195,8 @@ type MyProps = {
 }
 
 const MyComponent = (props: MyProps) => {
-  // compose merges defaults with reactive props
-  const state = compose({ count: 0 }, props)
+  // defaults applies ?? fallbacks lazily with reactive props
+  const state = defaults(props, { count: 0 })
   
   // Explicit effects for side-effects
   effect(() => {
@@ -214,7 +214,7 @@ const MyComponent = (props: MyProps) => {
 
 **Key rules**:
 - Component body runs ONCE. All reactivity via babel-wrapped attributes or explicit effects.
-- `compose(defaults, props)` — merges defaults with props, returns reactive object with defaults filled in.
+- `defaults(props, defs)` — lazy `??` fallbacks over reactive props, returns proxy.
 - Props are writable (two-way binding propagates back to parent).
 - `scope` (2nd parameter) is a prototype-inherited reactive object for dependency injection.
 
@@ -560,7 +560,7 @@ Orchestrated by Turborepo: `pnpm run build` from monorepo root
 | `<div if={state.show}>` | `{state.show && <div>}` |
 | `<input value={state.text} />` | `<input value={state.text} onChange={...} />` |
 | `{state.count}` | `{() => state.count}` |
-| `const state = compose({}, props)` | `const { x, y } = props` |
+| `const state = defaults(props, {})` | `const { x, y } = props` |
 | `effect(() => { state.x })` | bare `state.x` in component body |
 | `morph(arr, fn)` | `arr.map(fn)` for reactive transforms |
 | `arr.splice(0)` | `arr.length = 0` |

@@ -6,7 +6,7 @@ A **sursaut** application that serves as the living documentation for the entire
 
 | Package | Description |
 |---|---|
-| `@sursaut/core` | JSX factory, reactivity (`r()`), SursautElement, env, reconciler, directives (`if`, `when`, `for`, `dynamic`), two-way binding, `compose()`, SSR |
+| `@sursaut/core` | JSX factory, reactivity (`r()`), SursautElement, env, reconciler, directives (`if`, `when`, `for`, `dynamic`), two-way binding, `defaults()`, `extend()`, SSR |
 | `@sursaut/kit` | Router, client state, `stored()`, CSS injection, Intl components, API utilities |
 | `@sursaut/ui` | 15+ components, 6 directives, overlay system, DisplayProvider, adapter pattern, CSS variable contract |
 | `@sursaut/board` | Full-stack meta-framework (experimental — not published with the first npm wave; under rework) |
@@ -141,8 +141,10 @@ const ButtonPage = () => (
 /core                               @sursaut/core overview
 /core/components                    SursautElement, render, mount/use lifecycle
 /core/jsx                           JSX factory, r(), two-way binding, this=
-/core/directives                    if, when, for, dynamic, fragment
-/core/env                         Env chain, <env>, injection
+/core/meta-attributes               if, when, pick, update:, this, use
+/core/meta-components               for, env, try, fragment
+/core/bind                          two-way binding, update: syntax
+/core/env                           Env chain, extend(), injection
 /core/ssr                           Node entry, JSDOM, AsyncLocalStorage
 
 /kit                                @sursaut/kit overview
@@ -150,19 +152,30 @@ const ButtonPage = () => (
 /kit/client                         Browser state: url, prefersDark, direction, language
 /kit/intl                           Intl.Number, Intl.Date, Intl.RelativeTime, ...
 /kit/storage                        stored() — reactive localStorage
-/kit/api                            API utilities, validation (arktype)
+/kit/css                            componentStyle, CSS injection, SSR styles
+/kit/api                            API utilities, interceptors, SSR hydration
+/kit/display                        DisplayProvider, ThemeToggle, useDisplayContext
+/kit/head                           Head, useHead, head mounting
 
 /ui                                 @sursaut/ui overview
-/ui/components/button               Button, Button.primary, loading
-/ui/components/dialog               Dialog, Dialog.show(), backdrop, focus trap
-/ui/components/toast                Toast, bindToast(), variants
-/ui/components/drawer               Drawer, positioning, footer
-/ui/components/menu                 Menu, Menu.Bar, keyboard navigation
-/ui/components/infinite-scroll      Virtualization, variable height, sticky
-/ui/components/...                  (one route per component)
-/ui/directives                      badge, intersect, loading, pointer, resize, scroll
-/ui/display                         DisplayProvider, ThemeToggle, useDisplayContext
+/ui/button                          Button, Button.primary, loading
+/ui/accordion                       Accordion
+/ui/card                            Card, Card.Header/Body/Footer
+/ui/forms                           Select, Combobox, Checkbox, Radio, Switch, Multiselect
+/ui/icon-picker                     IconPicker — searchable icon gallery
+/ui/group-nav                       Group bindings + keyboard navigation
+/ui/split-theme                     SplitButton, SplitRadioButton, ThemeToggle, options model map
 /ui/overlays                        Overlay system architecture, WithOverlays
+/ui/layout                          Layout primitives
+/ui/palette                         Palette runtime, Ide, Toolbar, command box
+/ui/progress                        Progress components
+/ui/status                          Status components
+/ui/stars                           Stars rating
+/ui/menu                            Menu, Menu.Bar, keyboard navigation
+/ui/typography                      Typography scale
+/ui/infinite-scroll                 Virtualization, variable height, sticky
+/ui/directives                      badge, intersect, loading, pointer, resize, scroll, tail, sizeable, drag, scrollKeep, tooltip
+/ui/dockview                        Dockview, Splitview, Gridview, Paneview, DockviewRouter
 /ui/css-variables                   Full --sursaut-* contract with live swatches
 /ui/adapter                         Adapter pattern, creating custom adapters
 
@@ -179,6 +192,7 @@ const ButtonPage = () => (
 /mutts/signals                      reactive(), effect(), attend()
 /mutts/collections                  Arrays, Sets, Maps — reactive wrappers
 /mutts/zones                        Zone isolation, history, undo/redo
+/mutts/decorators                   decorator(), cached, atomic, descriptor
 
 /pure-glyf                          pure-glyf — icon system
 /pure-glyf/setup                    Vite plugin, icon sources
@@ -212,9 +226,10 @@ packages/docs/
 │   │   │   ├── index.tsx
 │   │   │   ├── components.tsx
 │   │   │   ├── jsx.tsx
-│   │   │   ├── directives.tsx
+│   │   │   ├── meta-attributes.tsx
+│   │   │   ├── meta-components.tsx
+│   │   │   ├── bind.tsx
 │   │   │   ├── env.tsx
-│   │   │   ├── compose.tsx
 │   │   │   └── ssr.tsx
 │   │   ├── kit/
 │   │   │   ├── index.tsx
@@ -222,16 +237,30 @@ packages/docs/
 │   │   │   ├── client.tsx
 │   │   │   ├── intl.tsx
 │   │   │   ├── storage.tsx
-│   │   │   └── api.tsx
+│   │   │   ├── css.tsx
+│   │   │   ├── api.tsx
+│   │   │   ├── display.tsx
+│   │   │   └── head.tsx
 │   │   ├── ui/
 │   │   │   ├── index.tsx
-│   │   │   ├── components/
-│   │   │   │   ├── button.tsx
-│   │   │   │   ├── dialog.tsx
-│   │   │   │   └── ...
-│   │   │   ├── directives.tsx
-│   │   │   ├── display.tsx
+│   │   │   ├── button.tsx
+│   │   │   ├── accordion.tsx
+│   │   │   ├── card.tsx
+│   │   │   ├── forms.tsx
+│   │   │   ├── icon-picker.tsx
+│   │   │   ├── group-nav.tsx
+│   │   │   ├── split-theme.tsx
 │   │   │   ├── overlays.tsx
+│   │   │   ├── layout.tsx
+│   │   │   ├── palette.tsx
+│   │   │   ├── progress.tsx
+│   │   │   ├── status.tsx
+│   │   │   ├── stars.tsx
+│   │   │   ├── menu.tsx
+│   │   │   ├── typography.tsx
+│   │   │   ├── infinite-scroll.tsx
+│   │   │   ├── directives.tsx
+│   │   │   ├── dockview.tsx
 │   │   │   ├── css-variables.tsx
 │   │   │   └── adapter.tsx
 │   │   ├── board/
@@ -247,7 +276,8 @@ packages/docs/
 │   │   │   ├── index.tsx
 │   │   │   ├── signals.tsx
 │   │   │   ├── collections.tsx
-│   │   │   └── zones.tsx
+│   │   │   ├── zones.tsx
+│   │   │   └── decorators.tsx
 │   │   └── pure-glyf/
 │   │       ├── index.tsx
 │   │       ├── setup.tsx
@@ -277,7 +307,7 @@ packages/docs/
     "@types/node": "^25",
     "sass": "^1.93",
     "typescript": "^5.9",
-    "vite": "^7"
+    "vite": "^8"
   }
 }
 ```

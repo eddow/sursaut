@@ -12,4 +12,4 @@ sandbox/
 .vscode
 .git/hooks/
 .generated-types/
-plans
+packages/docs/src/search-index.ts

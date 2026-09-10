@@ -1,7 +1,7 @@
 import { latch } from '@sursaut'
 import { setRouterPathnamePrefix } from '@sursaut/kit'
 import '@picocss/pico/css/pico.min.css'
-import '@sursaut/ui/styles/sizeable.sass'
+import 'dockview/dist/styles/dockview.css'
 import './styles/docs.sass'
 import './styles/theme-serene-confidence.css'
 import { ensureHighlightThemes } from './highlight-theme'

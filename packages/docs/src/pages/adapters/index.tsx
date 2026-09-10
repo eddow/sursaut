@@ -69,7 +69,9 @@ export default function AdaptersIndexPage() {
 				<p>
 					Consumers do not install or mutate a global adapter registry. They pick an adapter at
 					build time, import from <code>@sursaut</code> or the adapter package, and use the
-					resulting components directly.
+					resulting components directly. There is no <code>getAdapter()</code> /{' '}
+					<code>setAdapter()</code> or <code>UiComponents</code> registry in the current source —
+					older drafts described one; the barrel plugin replaced it.
 				</p>
 			</Section>
 		</article>

@@ -164,6 +164,9 @@ importers:
       mutts:
         specifier: link:../../../mutts
         version: link:../../../mutts
+      sass:
+        specifier: ^1.93.2
+        version: 1.97.3
     devDependencies:
       '@playwright/test':
         specifier: ^1.58.2
@@ -183,9 +186,6 @@ importers:
       baseline-browser-mapping:
         specifier: ^2.9.11
         version: 2.9.19
-      sass:
-        specifier: ^1.93.2
-        version: 1.97.3
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -216,6 +216,9 @@ importers:
       '@sursaut/ui':
         specifier: ^0.1.0
         version: link:../ui
+      dockview:
+        specifier: ^8.2.0
+        version: 8.2.0
       highlight.js:
         specifier: ^11
         version: 11.11.1

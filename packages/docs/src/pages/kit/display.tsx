@@ -36,9 +36,9 @@ export default function DisplayPage() {
 	return (
 		<article>
 			<PackageHeader
-				name="@sursaut/ui"
+				name="@sursaut/kit"
 				description="Theme management and display utilities."
-				install="pnpm add @sursaut/ui @sursaut/adapter-pico @sursaut/kit"
+				install="pnpm add @sursaut/kit @sursaut/ui @sursaut/adapter-pico"
 			/>
 
 			<Section title="Theme Toggle">

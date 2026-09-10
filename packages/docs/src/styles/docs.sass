@@ -2,9 +2,16 @@
   display: flex
   min-height: 100vh
 
+.docs-split
+  display: flex
+  flex: 1 1 0%
+  min-width: 0
+  min-height: 100vh
+
 .docs-sidebar
-  width: clamp(180px, var(--sizeable-width, 300px), 520px)
   flex: 0 0 auto
+  min-width: 180px
+  max-width: 520px
   position: sticky
   top: 0
   height: 100vh

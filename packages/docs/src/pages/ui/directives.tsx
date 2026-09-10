@@ -1,19 +1,20 @@
 import { Code, PackageHeader, Section } from '../../components'
 
 const installSnippet = `import { rootEnv } from '@sursaut/core'
-import { badge, intersect, loading, pointer, resize, scroll, sizeable, tail } from '@sursaut/ui'
+import {
+  badge, drag, dragging, drop, intersect, loading, pointer, resize,
+  scroll, scrollKeep, sizeable, tail,
+} from '@sursaut/ui'
 
 // Register only the directives your app needs
 Object.assign(rootEnv, {
-  badge,
-  intersect,
-  loading,
-  pointer,
-  resize,
-  scroll,
-  sizeable,
-  tail,
-})`
+  badge, drag, dragging, drop, intersect, loading, pointer, resize,
+  scroll, scrollKeep, sizeable, tail,
+})
+
+// Adapter-specific (pico): tooltip lives in @sursaut/adapter-pico
+import { tooltip } from '@sursaut/adapter-pico'
+Object.assign(rootEnv, { tooltip })`
 
 const loadingSnippet = `<button use:loading={state.saving}>
   Submit
@@ -96,6 +97,34 @@ const sizeableOptionsSnippet = `/* CSS controls min/max via clamp() on the paren
 .my-layout {
   --sursaut-resize-handle-width: 8px;
 }`
+
+const dragSnippet = `// drag: make an element a native-HTML5 drag source carrying a payload.
+<div use:drag={{ payload: { tool: 'save' }, onEnd: (p, didDrop) => console.log(p, didDrop) }}>
+  Drag me
+</div>
+
+// drop: accept that payload. dragging: reactive boolean while a drag hovers.
+<div use:drop={(payload) => addTool(payload.tool)}>
+  <span use:dragging={state.over}>Drop here{state.over ? ' (hot)' : ''}</span>
+</div>`
+
+const localDragSnippet = `import { startLocalDragSession } from '@sursaut/ui'
+
+// Pointer-based drag session (no native DnD): axis lock, grab offset,
+// pointer capture, preview element, geometry helpers in local-drag-geometry.
+<div use={(el) => startLocalDragSession({
+  event: el, // or drive from your own pointerdown
+  axis: 'horizontal',
+  payload: { id: 'toolbar-item' },
+  onMove: (snap) => movePreview(snap.delta),
+  onStop: (snap) => commit(snap),
+})} />`
+
+const scrollKeepSnippet = `// scrollKeep: no-op marker today (reserved for scroll-restore behavior).
+<div use:scrollKeep>...</div>
+
+// tooltip lives in the pico adapter (see /adapters/pico):
+// <button use:tooltip={{ text: 'Save', placement: 'bottom' }}>Save</button>`
 
 export default function UiDirectivesPage() {
 	return (
@@ -193,6 +222,28 @@ export default function UiDirectivesPage() {
 						</li>
 					</ul>
 				</Section>
+			</Section>
+
+			<Section title="drag / drop / dragging">
+				<p>
+					Native HTML5 drag-and-drop with a shared payload channel: <code>drag</code> sets{' '}
+					<code>draggable</code> and publishes the payload on dragstart; <code>drop</code> consumes
+					it; <code>dragging</code> binds a reactive boolean while a drag hovers the element.
+				</p>
+				<Code code={dragSnippet} lang="tsx" />
+			</Section>
+
+			<Section title="local-drag">
+				<p>
+					Pointer-based sessions for in-app dragging (palette edit mode, sliders) without native
+					DnD. <code>startLocalDragSession()</code> plus the <code>local-drag-geometry</code>{' '}
+					helpers (measure/resolve/insertion) power the palette toolbar dragging.
+				</p>
+				<Code code={localDragSnippet} lang="tsx" />
+			</Section>
+
+			<Section title="scrollKeep + tooltip">
+				<Code code={scrollKeepSnippet} lang="tsx" />
 			</Section>
 		</article>
 	)
